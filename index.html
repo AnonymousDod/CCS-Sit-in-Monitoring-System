@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>LOGIN</title>
+	<meta name="viewport" content="width=device-width, user-scalable=no" />
+</head>
+<link rel="stylesheet" type="text/css" href="style.css">
+
+<body>
+
+	<div class="loginbox">
+		<img src="image/user.png" class="user">
+		<h1>Login</h1>
+		<form action='cgi-bin/login.py' : method='post'>
+			<p>User name</p>
+			<input type="text" name="un" required placeholder="Enter username">
+			<p>Password</p>
+			<input type="Password" name="pwd" required placeholder="Enter Password">
+			<input type="submit" name="" value="Login">
+			<a href="#">LOST YOUR PASSWORD</a><br>
+			<a href="#">DON'T HAVE AN ACCOUNT?</a>
+		</form>
+	</div>
+
+</body>
+</html>
