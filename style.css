@@ -1,11 +1,51 @@
-body
-{
-
-	margin: 0;
-	padding: 0;
-	background: url(image/background.jpg) ;
-	background-size: cover;
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    background: linear-gradient(135deg, #3a86ff, #fff099);
+    background-size: 300% 300%;
+    animation: gradientFlow 20s infinite alternate ease-in-out;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
 }
+
+/* Very slow gradient transition */
+@keyframes gradientFlow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Wave effect */
+.wave {
+    position: absolute;
+    width: 200%;
+    height: 12vh;
+    bottom: 0;
+    left: 0;
+    background: rgba(255, 255, 255, 0.1); /* Softer transparency */
+    border-radius: 50%;
+    opacity: 0.4;
+    animation: waveMotion 16s infinite ease-in-out;
+}
+
+/* Second wave for depth */
+.wave:nth-child(2) {
+    bottom: -6vh;
+    animation-duration: 20s;
+    opacity: 0.25;
+}
+
+/* Very gentle wave movement */
+@keyframes waveMotion {
+    0% { transform: translateX(0) translateY(2px); }
+    50% { transform: translateX(-30px) translateY(-2px); }
+    100% { transform: translateX(0) translateY(2px); }
+}
+
 
 
 .loginbox{
@@ -20,6 +60,7 @@ body
 	box-sizing: border-box; 
 	padding: 70px 30px;
 	border-radius: 10px;
+	border: 2px solid black;
 }
 
 

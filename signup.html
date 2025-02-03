@@ -13,19 +13,61 @@
 
         body {
             font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
+            height: 100vh;
+            background: linear-gradient(135deg, #3a86ff, #fff099);
+            background-size: 300% 300%;
+            animation: gradientFlow 20s infinite alternate ease-in-out;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .wave {
+            position: absolute;
+            width: 200%;
+            height: 12vh;
+            bottom: 0;
+            left: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: waveMotion 16s infinite ease-in-out;
+        }
+
+        .wave:nth-child(2) {
+            bottom: -6vh;
+            animation-duration: 20s;
+            opacity: 0.25;
+        }
+
+        @keyframes waveMotion {
+            0% { transform: translateX(0) translateY(2px); }
+            50% { transform: translateX(-30px) translateY(-2px); }
+            100% { transform: translateX(0) translateY(2px); }
         }
 
         .form-container {
-            background-color: #ff726f;
+            background-color: #192485;
             border-radius: 10px;
             padding: 20px 30px;
             width: 400px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .form-container h2 {
+            color: #fff;
+            margin-bottom: 20px;
         }
 
         .signup-form {
@@ -89,7 +131,10 @@
     </style>
 </head>
 <body>
+    <div class="wave"></div>
+    <div class="wave"></div>
     <div class="form-container">
+        <h2>Registration</h2>
         <form class="signup-form" action="login.html" method="post">
             <div class="form-group full-width">
                 <label for="idno">ID Number: <span>*</span></label>
