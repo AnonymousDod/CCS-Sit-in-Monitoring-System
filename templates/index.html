@@ -1,26 +1,22 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>LOGIN</title>
-    <meta name="viewport" content="width=device-width, user-scalable=no" />
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+
 </head>
 <body>
-
     <div class="loginbox">
-        <img src="image/user.png" class="user">
         <h1>CCS Sit-in Monitoring System</h1>
-        <form action='cgi-bin/login.py' method='post'>
+        <form action="/login" method="post">  <!-- Sends data to Flask -->
             <p>User name</p>
             <input type="text" name="un" required placeholder="Enter username">
             <p>Password</p>
             <input type="password" name="pwd" required placeholder="Enter Password">
             <input type="submit" value="Login">
-            <p class="register-text">DON'T HAVE AN ACCOUNT? <a href="signup.html">REGISTER</a></p>
-
-
+            <p class="register-text">DON'T HAVE AN ACCOUNT? <a href="{{ url_for('signup') }}">REGISTER</a></p>
         </form>
     </div>
-
 </body>
 </html>
