@@ -1,7 +1,8 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, flash
 import sqlite3
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'  # Needed for flashing messages
 
 # Function to check login credentials
 def check_login(username, password):
@@ -23,10 +24,16 @@ def login_page():
         username = request.form.get("un")
         password = request.form.get("pwd")
 
+        # Check if both fields are filled out
+        if not username or not password:
+            flash('Please fill out both fields.', 'error')
+            return redirect(url_for('login_page'))  # Redirect back to the login page
+        
         if check_login(username, password):
             return redirect(url_for("home"))  # Redirect to home page if login is successful
         else:
-            return "Invalid Username or Password", 401  # Returns error
+            flash('Invalid Username or Password', 'error')  # Flash the error message
+            return redirect(url_for('login_page'))  # Redirect back to the login page
 
     return render_template("index.html")  # Renders the login page for GET request
 
@@ -55,11 +62,19 @@ def register_user():
         username = request.form.get("username")
         password = request.form.get("password")
 
-        # Save the new user to your database
+        # Check if username already exists
         con = sqlite3.connect("users.db")
         cur = con.cursor()
 
-        cur.execute("""
+        # Check for existing username
+        cur.execute("SELECT 1 FROM users WHERE username = ?", (username,))
+        if cur.fetchone():
+            flash('Username already taken. Please choose another one.', 'error')
+            con.close()
+            return redirect(url_for('signup'))  # Redirect to signup page if username exists
+
+        # Save the new user to your database
+        cur.execute(""" 
             INSERT INTO users (idno, lastname, firstname, midname, course, yearlevel, email, username, password)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (idno, lastname, firstname, midname, course, yearlevel, email, username, password))
@@ -67,6 +82,7 @@ def register_user():
         con.commit()
         con.close()
 
+        flash('Registration successful! You can now log in.', 'success')
         return redirect(url_for("login_page"))  # Redirect to login page after successful registration
 
 # Ensure the database exists and create the table if it doesn't
@@ -74,7 +90,7 @@ def create_db():
     con = sqlite3.connect("users.db")
     cur = con.cursor()
     
-    cur.execute("""
+    cur.execute(""" 
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             idno TEXT,
