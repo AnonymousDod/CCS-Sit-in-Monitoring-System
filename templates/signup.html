@@ -55,8 +55,9 @@
         }
 
         .form-container {
-            background-color: #192485;
+            background-color: #f0f0f0;
             border-radius: 10px;
+            border: 2px solid black;
             padding: 20px 30px;
             width: 400px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -66,7 +67,7 @@
         }
 
         .form-container h2 {
-            color: #fff;
+            color: #020202;
             margin-bottom: 20px;
         }
 
@@ -83,7 +84,7 @@
 
         .form-group label {
             font-size: 14px;
-            color: #fff;
+            color: #000000;
             margin-bottom: 5px;
         }
 
@@ -107,13 +108,13 @@
             border-radius: 4px;
             outline: none;
             background-color: #fff;
-            border: 1px solid #ddd;
+            border: 1px solid #000000;
             font-size: 14px;
         }
 
         button {
             background-color: #32cd32;
-            color: white;
+            color: rgb(255, 242, 242);
             font-size: 16px;
             font-weight: bold;
             padding: 10px;
@@ -126,7 +127,24 @@
         }
 
         button:hover {
-            background-color: #28a428;
+            background-color: #ffc107;
+        }
+
+        /* Flash message styles */
+        .flash-message {
+            margin: 10px 0;
+            padding: 10px;
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .error-message {
+            background-color: #f44336;  /* Red */
+        }
+
+        .success-message {
+            background-color: #4CAF50;  /* Green */
         }
     </style>
 </head>
@@ -135,6 +153,18 @@
     <div class="wave"></div>
     <div class="form-container">
         <h2>Registration</h2>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {% if category == 'error' %}error-message{% else %}success-message{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <form class="signup-form" action="{{ url_for('register_user') }}" method="post">
             <div class="form-group full-width">
                 <label for="idno">ID Number: <span>*</span></label>
@@ -157,7 +187,14 @@
             <div class="form-group">
                 <div>
                     <label for="course">Course: <span>*</span></label>
-                    <input type="text" id="course" name="course" required>
+                    <select id="course" id="course" name="course" required>
+                        <option value="">Select Course</option>
+                        <option value="1">Information Technology</option>
+                        <option value="2">Computer Engineering</option>
+                        <option value="3">Criminology</option>
+                        <option value="4">Customs Administration</option>
+                    </select>
+
                 </div>
                 <div>
                     <label for="yearlevel">Year Level: <span>*</span></label>
@@ -187,4 +224,3 @@
     </div>
 </body>
 </html>
-
