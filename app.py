@@ -1,16 +1,8 @@
-<<<<<<< HEAD
 from flask import Flask, request, render_template, redirect, url_for, flash, session
 import sqlite3
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Needed for flashing messages and session management
-=======
-from flask import Flask, request, render_template, redirect, url_for, flash
-import sqlite3
-
-app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Needed for flashing messages
->>>>>>> bd40fc2ebe9d7fac2b6622a7be9f185b0164ccbc
 
 # Function to check login credentials
 def check_login(username, password):
