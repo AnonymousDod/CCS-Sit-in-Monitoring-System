@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Top Bar Dashboard</title>
+  <style>
+    /* Basic Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+      background-color: #f4f4f4;
+    }
+
+    /* TOP NAVIGATION BAR */
+    .topbar {
+      width: 100%;
+      background-color: #007BFF;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 60px;
+      z-index: 1000;
+    }
+
+    .topbar h2 {
+      font-size: 1.5rem;
+    }
+
+    .nav-links {
+      list-style: none;
+      display: flex;
+      gap: 15px;
+    }
+
+    .nav-links li {
+      display: inline;
+    }
+
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+
+    .nav-links a:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* LOGOUT BUTTON */
+    .logout {
+      background-color: #dc3545; /* Red background */
+      padding: 10px 15px;
+      border-radius: 5px;
+    }
+    
+    .logout:hover {
+      background-color: #c82333;
+    }
+
+    /* MAIN CONTENT */
+    .main-content {
+      padding: 80px 20px; /* Ensure it does not overlap the fixed navbar */
+      text-align: center;
+    }
+
+    .content-box {
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAVIGATION BAR -->
+  <div class="topbar">
+    <h2>Dashboard</h2>
+    <ul class="nav-links">
+      <li><a href="{{ url_for('info') }}">Info</a></li>
+      <li><a href="{{ url_for('edit') }}">Edit</a></li>
+      <li><a href="{{ url_for('announcements') }}">Announcements</a></li>
+      <li><a href="{{ url_for('remaining_sessions') }}">Remaining Sessions</a></li>
+      <li><a href="{{ url_for('sit_in_rors') }}">Sit-in RORs</a></li>
+      <li><a href="{{ url_for('lab_rules') }}">Lab Rules & Regulation</a></li>
+      <li><a href="{{ url_for('sit_in_history') }}">Sit-in History</a></li>
+      <li><a href="{{ url_for('reservation') }}">Reservation</a></li>
+      <li><a href="{{ url_for('logout') }}" class="logout">Logout</a></li>
+    </ul>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <h1>Welcome to Sit-in Monitoring</h1>
+    <div class="content-box">
+      <p>RESERVE FOR ANY CONTENT NEEDED</p>
+    </div>
+  </div>
+
+</body>
+</html>

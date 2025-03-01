@@ -1,0 +1,160 @@
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    background: linear-gradient(135deg, #3a86ff, #fff099);
+    background-size: 300% 300%;
+    animation: gradientFlow 20s infinite alternate ease-in-out;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Very slow gradient transition */
+@keyframes gradientFlow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Wave effect */
+.wave {
+    position: absolute;
+    width: 200%;
+    height: 12vh;
+    bottom: 0;
+    left: 0;
+    background: rgba(255, 255, 255, 0.1); /* Softer transparency */
+    border-radius: 50%;
+    opacity: 0.4;
+    animation: waveMotion 16s infinite ease-in-out;
+}
+
+/* Second wave for depth */
+.wave:nth-child(2) {
+    bottom: -6vh;
+    animation-duration: 20s;
+    opacity: 0.25;
+}
+
+/* Very gentle wave movement */
+@keyframes waveMotion {
+    0% { transform: translateX(0) translateY(2px); }
+    50% { transform: translateX(-30px) translateY(-2px); }
+    100% { transform: translateX(0) translateY(2px); }
+}
+
+/* Flex container for centering login box and image */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Image on the side */
+.image-container {
+    flex: 1;
+    height: 100vh;
+    background-image: url('user.png'); /* Path to your image */
+    background-position: left;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Login box */
+.loginbox {
+    width: 360px;
+    height: 420px;
+    background: #fff;
+    color: #000;
+    box-sizing: border-box;
+    padding: 70px 30px;
+    border-radius: 10px;
+    border: 2px solid black;
+    position: relative;
+    z-index: 10; /* Ensures the form is on top of other elements */
+    text-align: center;
+}
+
+/* Profile picture above login box */
+.profile-pic {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #fff;
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ddd;
+}
+
+/* Profile image inside the circle */
+.profile-pic img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Heading */
+h1 {
+    margin: 0;
+    padding: 20px 0 10px; /* Adjusted for the profile picture */
+    font-size: 22px;
+}
+
+/* Label and Input fields */
+.loginbox p {
+    margin: 0;
+    padding: 0;
+    font-weight: bold;
+}
+
+.loginbox input {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.loginbox input[type="text"], input[type="password"] {
+    border: none;
+    border-bottom: 1px solid #000;
+    background: transparent;
+    outline: none;
+    height: 40px;
+    color: #000;
+    font-size: 16px;
+}
+
+.loginbox input[type="submit"] {
+    border: none;
+    outline: none;
+    height: 40px;
+    background: #25fb30;
+    color: #000;
+    font-size: 18px;
+    border-radius: 20px;
+    transition: 0.3s;
+}
+
+.loginbox input[type="submit"]:hover {
+    cursor: pointer;
+    background: #ffc107;
+    color: #000;
+}
+
+/* Link Styling */
+.loginbox a {
+    text-decoration: none;
+    font-size: 12px;
+    line-height: 20px;
+    color: grey;
+}
+
+.loginbox a:hover {
+    color: #ffc107;
+}

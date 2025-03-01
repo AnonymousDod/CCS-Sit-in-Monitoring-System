@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign-Up Form</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            background: linear-gradient(135deg, #3a86ff, #fff099);
+            background-size: 300% 300%;
+            animation: gradientFlow 20s infinite alternate ease-in-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .wave {
+            position: absolute;
+            width: 200%;
+            height: 12vh;
+            bottom: 0;
+            left: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: waveMotion 16s infinite ease-in-out;
+        }
+
+        .wave:nth-child(2) {
+            bottom: -6vh;
+            animation-duration: 20s;
+            opacity: 0.25;
+        }
+
+        @keyframes waveMotion {
+            0% { transform: translateX(0) translateY(2px); }
+            50% { transform: translateX(-30px) translateY(-2px); }
+            100% { transform: translateX(0) translateY(2px); }
+        }
+
+        .form-container {
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            border: 2px solid black;
+            padding: 20px 30px;
+            width: 400px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .form-container h2 {
+            color: #020202;
+            margin-bottom: 20px;
+        }
+
+        .signup-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            color: #000000;
+            margin-bottom: 5px;
+        }
+
+        .form-group.full-width {
+            flex-direction: column;
+        }
+
+        .form-group > div {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .form-group > div:last-child {
+            margin-right: 0;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            outline: none;
+            background-color: #fff;
+            border: 1px solid #000000;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #32cd32;
+            color: rgb(255, 242, 242);
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #ffc107;
+        }
+
+        /* Flash message styles */
+        .flash-message {
+            margin: 10px 0;
+            padding: 10px;
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .error-message {
+            background-color: #f44336;  /* Red */
+        }
+
+        .success-message {
+            background-color: #4CAF50;  /* Green */
+        }
+    </style>
+</head>
+<body>
+    <div class="wave"></div>
+    <div class="wave"></div>
+    <div class="form-container">
+        <h2>Registration</h2>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {% if category == 'error' %}error-message{% else %}success-message{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form class="signup-form" action="{{ url_for('register_user') }}" method="post">
+            <div class="form-group full-width">
+                <label for="idno">ID Number: <span>*</span></label>
+                <input type="text" id="idno" name="idno" required>
+            </div>
+            <div class="form-group">
+                <div>
+                    <label for="lastname">Lastname: <span>*</span></label>
+                    <input type="text" id="lastname" name="lastname" required>
+                </div>
+                <div>
+                    <label for="firstname">Firstname: <span>*</span></label>
+                    <input type="text" id="firstname" name="firstname" required>
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label for="midname">Middle Name: <span>*</span></label>
+                <input type="text" id="midname" name="midname" required>
+            </div>
+            <div class="form-group">
+                <div>
+                    <label for="course">Course: <span>*</span></label>
+                    <select id="course" id="course" name="course" required>
+                        <option value="">Select Course</option>
+                        <option value="1">Information Technology</option>
+                        <option value="2">Computer Engineering</option>
+                        <option value="3">Criminology</option>
+                        <option value="4">Customs Administration</option>
+                    </select>
+
+                </div>
+                <div>
+                    <label for="yearlevel">Year Level: <span>*</span></label>
+                    <select id="yearlevel" name="yearlevel" required>
+                        <option value="">Select Year Level</option>
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                        <option value="4">4th Year</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label for="email">Email: <span>*</span></label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group full-width">
+                <label for="username">Username: <span>*</span></label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group full-width">
+                <label for="password">Password: <span>*</span></label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">SIGN UP</button>
+           <br>
+            <p class="register-text">ALREADY HAVE AN ACCOUNT? <a href="{{ url_for('login_page') }}">LOGIN</a></p>
+
+        </form>
+    </div>
+</body>
+</html>

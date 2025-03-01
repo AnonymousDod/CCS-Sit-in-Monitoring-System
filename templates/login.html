@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>LOGIN</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        
+        <!-- Login Form -->
+        <div class="loginbox">
+            <!-- Circular Image -->
+            <div class="profile-pic">
+                <img src="{{ url_for('static', filename='image/user.png') }}" alt="Profile Picture">
+            </div>
+
+            <h1>CCS Sit-in Monitoring System</h1>
+            <form action="/login" method="post">  <!-- Sends data to Flask -->
+                <p>User name</p>
+                <input type="text" name="un" required placeholder="Enter username">
+                <p>Password</p>
+                <input type="password" name="pwd" required placeholder="Enter Password">
+                <input type="submit" value="Login">
+
+                <!-- Display Flash Message -->
+                <p class="register-text">DON'T HAVE AN ACCOUNT? <a href="{{ url_for('signup') }}">REGISTER</a></p>
+            </form>
+            <br><center>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="{{ 'error-message' if category == 'error' else 'success-message' }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </center>
+        </div>
+    </div>
+
+    <script>
+        function showForm(formId){
+            document.getElementById(formId).classList.add('active');
+        }
+
+        function tooglePassword(inputId, toogleId) {
+            let input = document.getElementById(inputId);
+            let toogle = document.getElementById(toogleId);
+            
+            if (input.type === "password") {
+                input.type = "text";
+                toogle.classList.add("closed");
+            } else {
+                input.type = "password";
+                toogle.classList.remove("closed");
+            }
+        }
+
+        function validatePassword() {
+            let password = document.getElementById("register-password").value;
+            let repeatPassword = document.getElementById("repeat-password").value;
+
+            if (password !== repeatPassword) {
+                alert("Passwords do not match!");
+                return false;
+            }
+            return true;
+        }
+    </script>
+</body>
+</html>
