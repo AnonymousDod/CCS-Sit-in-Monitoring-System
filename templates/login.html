@@ -2,72 +2,53 @@
 <html lang="en">
 <head>
     <title>LOGIN</title>
-    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="d-flex justify-content-center align-items-center vh-100 bg-light">
     <div class="container">
-        
-        <!-- Login Form -->
-        <div class="loginbox">
-            <!-- Circular Image -->
-            <div class="profile-pic">
-                <img src="{{ url_for('static', filename='image/user.png') }}" alt="Profile Picture">
+        <div class="row justify-content-center">
+            <div class="col-md-4">
+                <!-- Login Form -->
+                <div class="card shadow-lg p-4 text-center">
+                    <div class="profile-pic mx-auto mb-3">
+                        <img src="{{ url_for('static', filename='image/user.png') }}" alt="Profile Picture" class="rounded-circle" width="100">
+                    </div>
+                    <h2 class="mb-3">CCS Sit-in Monitoring System</h2>
+
+                    <form action="/login" method="post">
+                        <div class="mb-3 text-start">
+                            <label class="form-label">User Name</label>
+                            <input type="text" name="un" class="form-control" required placeholder="Enter username">
+                        </div>
+                        <div class="mb-3 text-start">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="pwd" class="form-control" required placeholder="Enter Password">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+
+                    <!-- Register Link -->
+                    <p class="mt-3">Don't have an account? <a href="{{ url_for('signup') }}">Register</a></p>
+
+                    <!-- Flash Messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert {% if category == 'error' %}alert-danger{% else %}alert-success{% endif %} mt-2">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
             </div>
-
-            <h1>CCS Sit-in Monitoring System</h1>
-            <form action="/login" method="post">  <!-- Sends data to Flask -->
-                <p>User name</p>
-                <input type="text" name="un" required placeholder="Enter username">
-                <p>Password</p>
-                <input type="password" name="pwd" required placeholder="Enter Password">
-                <input type="submit" value="Login">
-
-                <!-- Display Flash Message -->
-                <p class="register-text">DON'T HAVE AN ACCOUNT? <a href="{{ url_for('signup') }}">REGISTER</a></p>
-            </form>
-            <br><center>
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="{{ 'error-message' if category == 'error' else 'success-message' }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-            </center>
         </div>
     </div>
 
-    <script>
-        function showForm(formId){
-            document.getElementById(formId).classList.add('active');
-        }
-
-        function tooglePassword(inputId, toogleId) {
-            let input = document.getElementById(inputId);
-            let toogle = document.getElementById(toogleId);
-            
-            if (input.type === "password") {
-                input.type = "text";
-                toogle.classList.add("closed");
-            } else {
-                input.type = "password";
-                toogle.classList.remove("closed");
-            }
-        }
-
-        function validatePassword() {
-            let password = document.getElementById("register-password").value;
-            let repeatPassword = document.getElementById("repeat-password").value;
-
-            if (password !== repeatPassword) {
-                alert("Passwords do not match!");
-                return false;
-            }
-            return true;
-        }
-    </script>
+    <!-- Bootstrap JS Bundle (Popper + Bootstrap) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
