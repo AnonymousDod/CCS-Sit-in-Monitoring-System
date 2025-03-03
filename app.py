@@ -169,9 +169,9 @@ def sit_in_rors():
 def sit_in_history():
     return render_template('sit_in_history.html')
 
-@app.route('/reservation')
-def reservation():
-    return render_template('reservation.html')
+@app.route('/register_user', methods=['GET', 'POST'])
+def register_user():
+    return render_template('signup.html')
 
 @app.route("/logout")
 def logout():

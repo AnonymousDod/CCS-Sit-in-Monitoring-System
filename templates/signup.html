@@ -13,16 +13,19 @@
 
         body {
             font-family: Arial, sans-serif;
-            height: 100vh;
             background: linear-gradient(135deg, #3a86ff, #fff099);
             background-size: 300% 300%;
             animation: gradientFlow 20s infinite alternate ease-in-out;
             display: flex;
             justify-content: center;
             align-items: center;
-            position: relative;
-            overflow: hidden;
+            min-height: 100vh; /* Ensures full-page coverage */
+            overflow-x: hidden; /* Prevents unwanted horizontal scroll */
+            overflow-y: auto; /* Allows vertical scrolling */
+            padding: 20px; /* Prevents content from touching edges */
+            width: 100vw; /* Ensures it fits within the viewport */
         }
+
 
         @keyframes gradientFlow {
             0% { background-position: 0% 50%; }

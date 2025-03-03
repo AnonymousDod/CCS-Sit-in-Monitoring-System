@@ -63,21 +63,62 @@
                           <img src="{{ url_for('static', filename='image/ccs_logo.png') }}" alt="CCS Logo" class="img-fluid" width="60">
                       </div>
                       <h2 class="text-center">College of Information & Computer Studies</h2>
-                      <p class="text-muted text-center">Please observe the following rules:</p>
+                      <p class="text-muted text-center">LABORATORY RULES AND REGULATIONS</p>
+                      <p class="text-muted text-center">To avoid embarrassment and maintain camaraderie with your friends and superiors at our laboratories, please observe the following:</p>
                       <ul class="list-group list-group-flush">
-                          <li class="list-group-item">Maintain silence and discipline inside the laboratory.</li>
-                          <li class="list-group-item">Games are not allowed inside the lab.</li>
-                          <li class="list-group-item">Internet use only with instructor permission.</li>
+                          <li class="list-group-item">Maintain silence, proper decorum, and discipline inside the laboratory. Mobile phones, walkmans, and other personal pieces of equipment must be switched off. </li>
+                          <li class="list-group-item">Games are not allowed inside the lab. This includes computer-related games, card games, and other games that may disturb the operation of the lab.</li>
+                          <li class="list-group-item">Surfing the Internet is allowed only with the permission of the instructor. Downloading and installing of software are strictly prohibited.</li>
                       </ul>
                       <div class="collapse" id="moreRules">
                           <ul class="list-group list-group-flush">
-                              <li class="list-group-item">No eating, drinking, or vandalism.</li>
-                              <li class="list-group-item">Report technical issues immediately.</li>
-                          </ul>
+                              <li class="list-group-item">Surfing the Internet is allowed only with the permission of the instructor. Downloading and installing of software are strictly prohibited.</li>
+                              <li class="list-group-item">Deleting computer files and changing the set-up of the computer is a major offense.</li>
+                              <li class="list-group-item">Observe computer time usage carefully. A fifteen-minute allowance is given for each use. Otherwise, the unit will be given to those who wish to "sit-in".</li>
+                            </ul>
                       </div>
+                      <div class="collapse" id="moreRules">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong> Observe proper decorum while inside the laboratory:</strong></li>
+                                <li class="list-group-item">Do not get inside the lab unless the instructor is present.</li>
+                                <li class="list-group-item">All bags, knapsacks, and the like must be deposited at the counter.</li>
+                                <li class="list-group-item">Follow the seating arrangement of your instructor.</li>
+                                <li class="list-group-item">At the end of class, all software programs must be closed.</li>
+                                <li class="list-group-item">Return all chairs to their proper places after using.</li>
+                            </ul>
+                        </div>
+                        <div class="collapse" id="moreRules">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">Chewing gum, eating, drinking, smoking, and other forms of vandalism are prohibited inside the lab.</li>
+                                <li class="list-group-item">Anyone causing a continual disturbance will be asked to leave the lab. Acts or gestures offensive to the members of the community, including public display of physical intimacy, are not tolerated.</li>
+                                <li class="list-group-item">Persons exhibiting hostile or threatening behavior such as yelling, swearing, or disregarding requests made by lab personnel will be asked to leave the lab.</li>
+                                <li class="list-group-item">For serious offenses, the lab personnel may call the Civil Security Office (CSU) for assistance.</li>
+                                <li class="list-group-item">Any technical problem or difficulty must be addressed to the laboratory supervisor, student assistant, or instructor immediately.</li>
+                            </ul>
+                        </div>
+                        <div>
+                                <h5>Disciplinary Action</h5>
+                                <ul>
+                                <li><strong>First Offense</strong> - The Head or the Dean or OIC recommends to the Guidance Center for a suspension from classes for each offender.</li>
+                                <li><strong>Second and Subsequent Offenses</strong> - A recommendation for a heavier sanction will be endorsed to the Guidance Center.</li>
+                                </ul>
+                        </div>
                       <div class="text-center mt-3">
-                          <button class="btn btn-primary btn-sm w-100" data-bs-toggle="collapse" data-bs-target="#moreRules">Show More</button>
-                      </div>
+                        <button class="btn btn-primary btn-sm w-100" data-bs-toggle="collapse" data-bs-target="#moreRules" onclick="toggleText(this)">
+                            Show More
+                        </button>
+                    </div>
+    
+                    <script>
+                    function toggleText(button) {
+                        if (button.innerText === "Show More") {
+                            button.innerText = "Show Less";
+                        } else {
+                            button.innerText = "Show More";
+                        }
+                    }
+                    </script>
+                    
                   </div>
               </div>
           </div>
