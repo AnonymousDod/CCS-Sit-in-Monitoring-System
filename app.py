@@ -41,6 +41,49 @@ def update_session(username):
             "profile_pic": user["profile_pic"] if user["profile_pic"] else "default.png"
         }
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        firstname = request.form.get("firstname")
+        lastname = request.form.get("lastname")
+        email = request.form.get("email")
+        username = request.form.get("username")
+        password = request.form.get("password")
+        course = request.form.get("course")
+        yearlevel = request.form.get("yearlevel")
+
+        # Ensure all fields are filled
+        if not (firstname and lastname and email and username and password and course and yearlevel):
+            flash("All fields are required!", "error")
+            return redirect(url_for("register"))
+        
+        # Check if username already exists
+        con = sqlite3.connect("users.db")
+        cur = con.cursor()
+        cur.execute("SELECT * FROM users WHERE username = ?", (username,))
+        existing_user = cur.fetchone()
+
+        if existing_user:
+            flash("Username already taken. Choose a different one.", "error")
+            con.close()
+            return redirect(url_for("register"))
+
+        # Hash the password
+        hashed_password = generate_password_hash(password, method="pbkdf2:sha256")
+
+        # Insert user into the database
+        cur.execute("""
+            INSERT INTO users (firstname, lastname, email, username, password, course, yearlevel, profile_pic)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (firstname, lastname, email, username, hashed_password, course, yearlevel, "default.png"))
+
+        con.commit()
+        con.close()
+
+        flash("Registration successful! You can now log in.", "success")
+        return redirect(url_for("login_page"))
+
+    return render_template("login.html")
 
 # Function to check login credentials
 def check_login(username, password):
@@ -83,15 +126,13 @@ def update_profile():
     if "user" not in session:
         flash("Please log in first.", "error")
         return redirect(url_for("login_page"))
+
     user_id = session["user"]["id"]
     firstname = request.form.get("firstname")
     lastname = request.form.get("lastname")
     email = request.form.get("email")
     course = request.form.get("course")
     yearlevel = request.form.get("yearlevel")
-
-    # Debugging: Print received values
-    print(f"Received Data - Firstname: {firstname}, Lastname: {lastname}, Email: {email}, Course: {course}, Year Level: {yearlevel}")
 
     if not (firstname and lastname and email and course and yearlevel):
         flash("All fields are required!", "error")
@@ -100,12 +141,30 @@ def update_profile():
     con = sqlite3.connect("users.db")
     cur = con.cursor()
     cur.execute("""
-        UPDATE users SET firstname = ?, lastname = ?, email = ?, course = ?, yearlevel = ? WHERE id = ?
+        UPDATE users 
+        SET firstname = ?, lastname = ?, email = ?, course = ?, yearlevel = ? 
+        WHERE id = ?
     """, (firstname, lastname, email, course, yearlevel, user_id))
     con.commit()
     con.close()
 
-    update_session(session["user"]["username"])
+    # ✅ Refresh session data from the database
+    con = sqlite3.connect("users.db")
+    cur = con.cursor()
+    cur.execute("SELECT id, firstname, lastname, email, course, yearlevel FROM users WHERE id = ?", (user_id,))
+    updated_user = cur.fetchone()
+    con.close()
+
+    # ✅ Store the updated user info in session
+    session["user"] = {
+        "id": updated_user[0],
+        "firstname": updated_user[1],
+        "lastname": updated_user[2],
+        "email": updated_user[3],
+        "course": updated_user[4],
+        "yearlevel": updated_user[5],
+    }
+
     flash("Profile updated successfully!", "success")
     return redirect(url_for("home"))
 
@@ -140,6 +199,31 @@ def upload_profile_pic():
         flash("Profile picture updated successfully!", "success")
 
     return redirect(url_for("home"))
+
+@app.route("/profile")
+def profile():
+    if "user" not in session:
+        flash("Please log in first.", "error")
+        return redirect(url_for("login_page"))
+
+    user_id = session["user"]["id"]
+    
+    con = sqlite3.connect("users.db")
+    cur = con.cursor()
+    cur.execute("SELECT firstname, lastname, email, course FROM users WHERE id = ?", (user_id,))
+    user = cur.fetchone()
+    con.close()
+
+    if user:
+        session["user"]["firstname"] = user[0]
+        session["user"]["lastname"] = user[1]
+        session["user"]["email"] = user[2]
+        session["user"]["course"] = user[3]  # Ensure course is stored in session
+    else:
+        flash("User not found.", "error")
+        return redirect(url_for("home"))
+
+    return redirect(url_for("profile"))
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
