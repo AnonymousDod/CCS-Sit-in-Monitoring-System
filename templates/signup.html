@@ -3,230 +3,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign-Up Form</title>
+    <title>CCS Sit-in Monitoring System - Registration</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #3a86ff, #fff099);
-            background-size: 300% 300%;
-            animation: gradientFlow 20s infinite alternate ease-in-out;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh; /* Ensures full-page coverage */
-            overflow-x: hidden; /* Prevents unwanted horizontal scroll */
-            overflow-y: auto; /* Allows vertical scrolling */
-            padding: 20px; /* Prevents content from touching edges */
-            width: 100vw; /* Ensures it fits within the viewport */
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-
-
-        @keyframes gradientFlow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        .signup-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
         }
-
-        .wave {
-            position: absolute;
-            width: 200%;
-            height: 12vh;
-            bottom: 0;
-            left: 0;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            opacity: 0.4;
-            animation: waveMotion 16s infinite ease-in-out;
-        }
-
-        .wave:nth-child(2) {
-            bottom: -6vh;
-            animation-duration: 20s;
-            opacity: 0.25;
-        }
-
-        @keyframes waveMotion {
-            0% { transform: translateX(0) translateY(2px); }
-            50% { transform: translateX(-30px) translateY(-2px); }
-            100% { transform: translateX(0) translateY(2px); }
-        }
-
-        .form-container {
-            background-color: #f0f0f0;
-            border-radius: 10px;
-            border: 2px solid black;
-            padding: 20px 30px;
-            width: 400px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            position: relative;
-            z-index: 1;
+        .form-title {
+            color: #1e3c72;
+            margin-bottom: 30px;
             text-align: center;
         }
-
-        .form-container h2 {
-            color: #020202;
-            margin-bottom: 20px;
+        .form-title i {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
         }
-
-        .signup-form {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group {
-            display: flex;
-            justify-content: space-between;
+        .form-control {
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #ddd;
             margin-bottom: 15px;
         }
-
-        .form-group label {
-            font-size: 14px;
-            color: #000000;
+        .form-control:focus {
+            border-color: #1e3c72;
+            box-shadow: 0 0 0 0.2rem rgba(30, 60, 114, 0.25);
+        }
+        .form-label {
+            color: #1e3c72;
+            font-weight: 500;
             margin-bottom: 5px;
         }
-
-        .form-group.full-width {
-            flex-direction: column;
+        .required::after {
+            content: "*";
+            color: red;
         }
-
-        .form-group > div {
-            flex: 1;
-            margin-right: 10px;
-        }
-
-        .form-group > div:last-child {
-            margin-right: 0;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 8px;
+        .btn-register {
+            background: #1e3c72;
             border: none;
-            border-radius: 4px;
-            outline: none;
-            background-color: #fff;
-            border: 1px solid #000000;
-            font-size: 14px;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 500;
+            margin-top: 20px;
         }
-
-        button {
-            background-color: #32cd32;
-            color: rgb(255, 242, 242);
-            font-size: 16px;
-            font-weight: bold;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-transform: uppercase;
-            width: 100%;
-            margin-top: 10px;
+        .btn-register:hover {
+            background: #2a5298;
         }
-
-        button:hover {
-            background-color: #ffc107;
-        }
-
-        /* Flash message styles */
-        .flash-message {
-            margin: 10px 0;
-            padding: 10px;
-            color: white;
-            border-radius: 4px;
+        .login-link {
             text-align: center;
+            margin-top: 20px;
         }
-
-        .error-message {
-            background-color: #f44336;  /* Red */
+        .login-link a {
+            color: #1e3c72;
+            text-decoration: none;
         }
-
-        .success-message {
-            background-color: #4CAF50;  /* Green */
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        .alert {
+            border-radius: 8px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
-<body>
-    <div class="wave"></div>
-    <div class="wave"></div>
-    <div class="form-container">
-        <h2>Registration</h2>
-
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash-message {% if category == 'error' %}error-message{% else %}success-message{% endif %}">
-                        {{ message }}
+<body class="d-flex justify-content-center align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="signup-card">
+                    <div class="form-title">
+                        <i class="bi bi-person-plus"></i>
+                        <h2>Create New Account</h2>
+                        <p class="text-muted">Please fill in the details to register</p>
                     </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
 
-        <form class="signup-form" action="{{ url_for('register') }}" method="post">
-            <div class="form-group full-width">
-                <label for="idno">ID Number: <span>*</span></label>
-                <input type="text" id="idno" name="idno" required>
-            </div>
-            <div class="form-group">
-                <div>
-                    <label for="lastname">Lastname: <span>*</span></label>
-                    <input type="text" id="lastname" name="lastname" required>
-                </div>
-                <div>
-                    <label for="firstname">Firstname: <span>*</span></label>
-                    <input type="text" id="firstname" name="firstname" required>
-                </div>
-            </div>
-            <div class="form-group full-width">
-                <label for="midname">Middle Name: <span>*</span></label>
-                <input type="text" id="midname" name="midname" required>
-            </div>
-            <div class="form-group">
-                <div>
-                    <label for="course">Course: <span>*</span></label>
-                    <select id="course" id="course" name="course" required>
-                        <option value="">Select Course</option>
-                        <option value="1">Information Technology</option>
-                        <option value="2">Computer Engineering</option>
-                        <option value="3">Criminology</option>
-                        <option value="4">Customs Administration</option>
-                    </select>
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert {% if category == 'error' %}alert-danger{% else %}alert-success{% endif %}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
 
-                </div>
-                <div>
-                    <label for="yearlevel">Year Level: <span>*</span></label>
-                    <select id="yearlevel" name="yearlevel" required>
-                        <option value="">Select Year Level</option>
-                        <option value="1">1st Year</option>
-                        <option value="2">2nd Year</option>
-                        <option value="3">3rd Year</option>
-                        <option value="4">4th Year</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group full-width">
-                <label for="email">Email: <span>*</span></label>
-                <input type="email" id="email" name="email" required>
-            </div>
-            <div class="form-group full-width">
-                <label for="username">Username: <span>*</span></label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            <div class="form-group full-width">
-                <label for="password">Password: <span>*</span></label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit">SIGN UP</button>
-           <br>
-            <p class="register-text">ALREADY HAVE AN ACCOUNT? <a href="{{ url_for('login_page') }}">LOGIN</a></p>
+                    <form action="{{ url_for('signup') }}" method="post">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required">ID Number (Username)</label>
+                                <input type="text" class="form-control" name="idno" required>
+                                <small class="text-muted">This will be your login username</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required">Email</label>
+                                <input type="email" class="form-control" name="email" required>
+                            </div>
+                        </div>
 
-        </form>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">First Name</label>
+                                <input type="text" class="form-control" name="firstname" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">Middle Name</label>
+                                <input type="text" class="form-control" name="midname" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">Last Name</label>
+                                <input type="text" class="form-control" name="lastname" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required">Course</label>
+                                <select class="form-control" name="course" required>
+                                    <option value="">Select Course</option>
+                                    <option value="1">Information Technology</option>
+                                    <option value="2">Computer Engineering</option>
+                                    <option value="3">Criminology</option>
+                                    <option value="4">Customs Administration</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required">Year Level</label>
+                                <select class="form-control" name="yearlevel" required>
+                                    <option value="">Select Year Level</option>
+                                    <option value="1">1st Year</option>
+                                    <option value="2">2nd Year</option>
+                                    <option value="3">3rd Year</option>
+                                    <option value="4">4th Year</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label required">Password</label>
+                                <input type="password" class="form-control" name="password" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-register w-100">Register</button>
+                    </form>
+
+                    <div class="login-link">
+                        Already have an account? <a href="{{ url_for('login_page') }}">Login here</a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

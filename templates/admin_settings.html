@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Admin Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: #1e3c72;
+            color: white;
+            padding-top: 20px;
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            margin: 4px 0;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        .sidebar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .sidebar .nav-link i {
+            margin-right: 10px;
+        }
+        .main-content {
+            padding: 20px;
+        }
+        .settings-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .settings-section {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        .settings-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="text-center mb-4">
+                    <i class="bi bi-shield-lock" style="font-size: 2rem;"></i>
+                    <h5 class="mt-2">Admin Panel</h5>
+                </div>
+                <nav class="nav flex-column">
+                    <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                    <a class="nav-link" href="{{ url_for('admin_users') }}">
+                        <i class="bi bi-people"></i> User Management
+                    </a>
+                    <a class="nav-link" href="{{ url_for('admin_sessions') }}">
+                        <i class="bi bi-clock"></i> Session Management
+                    </a>
+                    <a class="nav-link active" href="{{ url_for('admin_settings') }}">
+                        <i class="bi bi-gear"></i> Settings
+                    </a>
+                    <a class="nav-link text-danger" href="{{ url_for('admin_logout') }}">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <h2 class="mb-4">System Settings</h2>
+
+                <!-- General Settings -->
+                <div class="settings-card">
+                    <div class="settings-section">
+                        <h4 class="mb-4">General Settings</h4>
+                        <form>
+                            <div class="mb-3">
+                                <label class="form-label">System Name</label>
+                                <input type="text" class="form-control" value="CCS Sit-in Monitoring System">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Admin Email</label>
+                                <input type="email" class="form-control" value="admin@uc.edu.ph">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Time Zone</label>
+                                <select class="form-select">
+                                    <option>UTC+08:00 (Philippine Time)</option>
+                                    <option>UTC+00:00 (GMT)</option>
+                                    <option>UTC+01:00 (CET)</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Session Settings -->
+                    <div class="settings-section">
+                        <h4 class="mb-4">Session Settings</h4>
+                        <form>
+                            <div class="mb-3">
+                                <label class="form-label">Default Session Duration (minutes)</label>
+                                <input type="number" class="form-control" value="15">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Maximum Active Sessions per User</label>
+                                <input type="number" class="form-control" value="1">
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">Auto-end inactive sessions</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Security Settings -->
+                    <div class="settings-section">
+                        <h4 class="mb-4">Security Settings</h4>
+                        <form>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">Enable Two-Factor Authentication</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">Session Timeout</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Session Timeout Duration (minutes)</label>
+                                <input type="number" class="form-control" value="30">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password Policy</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">Require uppercase letters</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">Require numbers</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">Require special characters</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Backup Settings -->
+                    <div class="settings-section">
+                        <h4 class="mb-4">Backup & Maintenance</h4>
+                        <form>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">Enable Automatic Backups</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Backup Frequency</label>
+                                <select class="form-select">
+                                    <option>Daily</option>
+                                    <option>Weekly</option>
+                                    <option>Monthly</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Backup Storage Location</label>
+                                <input type="text" class="form-control" value="/backups">
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-primary">
+                                    <i class="bi bi-download me-2"></i>Create Backup Now
+                                </button>
+                                <button type="button" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Clear System Cache
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div class="text-end mt-4">
+                        <button type="button" class="btn btn-primary" onclick="saveSettings()">
+                            <i class="bi bi-save me-2"></i>Save All Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function saveSettings() {
+            // Implement settings save functionality
+            alert('Settings saved successfully!');
+        }
+    </script>
+</body>
+</html> 
