@@ -8,33 +8,39 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .sidebar {
-            min-height: 100vh;
-            background: #1e3c72;
-            color: white;
-            padding-top: 20px;
+        .navbar {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.8);
-            padding: 12px 20px;
-            margin: 4px 0;
+        .navbar-brand {
+            color: white !important;
+            font-weight: 500;
+        }
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+            padding: 0.5rem 1rem;
+            margin: 0 0.2rem;
             border-radius: 8px;
             transition: all 0.3s;
         }
-        .sidebar .nav-link:hover {
+        .nav-link:hover {
             background: rgba(255, 255, 255, 0.1);
-            color: white;
+            color: white !important;
         }
-        .sidebar .nav-link.active {
+        .nav-link.active {
             background: rgba(255, 255, 255, 0.2);
-            color: white;
+            color: white !important;
         }
-        .sidebar .nav-link i {
-            margin-right: 10px;
+        .nav-link i {
+            margin-right: 8px;
         }
         .main-content {
-            padding: 20px;
+            padding: 2rem;
+            margin-top: 4rem;
         }
         .stat-card {
             background: white;
@@ -53,125 +59,232 @@
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            height: 300px;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #bb2d3b;
+            border-color: #b02a37;
+        }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar">
-                <div class="text-center mb-4">
-                    <i class="bi bi-shield-lock" style="font-size: 2rem;"></i>
-                    <h5 class="mt-2">Admin Panel</h5>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-shield-lock me-2"></i>Admin Panel
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('admin_dashboard') }}">
+                            <i class="bi bi-speedometer2"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_users') }}">
+                            <i class="bi bi-people"></i>Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_sessions') }}">
+                            <i class="bi bi-clock"></i>Sessions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_announcements') }}">
+                            <i class="bi bi-megaphone"></i>Announcements
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_sitin') }}">
+                            <i class="bi bi-pc-display"></i>Sit-in
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_reservations') }}">
+                            <i class="bi bi-calendar-check"></i>Reservations
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_feedback') }}">
+                            <i class="bi bi-chat-dots"></i>Feedback
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link text-danger" href="{{ url_for('admin_logout') }}">
+                            <i class="bi bi-box-arrow-right"></i>Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Dashboard Overview</h2>
+                <div class="text-end">
+                    <span class="text-muted">Welcome, Admin</span>
                 </div>
-                <nav class="nav flex-column">
-                    <a class="nav-link active" href="{{ url_for('admin_dashboard') }}">
-                        <i class="bi bi-speedometer2"></i> Dashboard
-                    </a>
-                    <a class="nav-link" href="{{ url_for('admin_users') }}">
-                        <i class="bi bi-people"></i> User Management
-                    </a>
-                    <a class="nav-link" href="{{ url_for('admin_sessions') }}">
-                        <i class="bi bi-clock"></i> Session Management
-                    </a>
-                    <a class="nav-link" href="{{ url_for('admin_settings') }}">
-                        <i class="bi bi-gear"></i> Settings
-                    </a>
-                    <a class="nav-link text-danger" href="{{ url_for('admin_logout') }}">
-                        <i class="bi bi-box-arrow-right"></i> Logout
-                    </a>
-                </nav>
             </div>
 
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 main-content">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Dashboard Overview</h2>
-                    <div class="text-end">
-                        <span class="text-muted">Welcome, Admin</span>
-                    </div>
-                </div>
-
-                <!-- Statistics Cards -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="text-muted">Total Users</h6>
-                                    <h3>{{ total_users }}</h3>
-                                </div>
-                                <i class="bi bi-people"></i>
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted">Total Users</h6>
+                                <h3>{{ total_users }}</h3>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="text-muted">Active Sessions</h6>
-                                    <h3>{{ active_sessions }}</h3>
-                                </div>
-                                <i class="bi bi-clock"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="text-muted">Today's Logins</h6>
-                                    <h3>{{ today_logins }}</h3>
-                                </div>
-                                <i class="bi bi-box-arrow-in-right"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="text-muted">System Status</h6>
-                                    <h3>Active</h3>
-                                </div>
-                                <i class="bi bi-check-circle"></i>
-                            </div>
+                            <i class="bi bi-people"></i>
                         </div>
                     </div>
                 </div>
-
-                <!-- Recent Users Table -->
-                <div class="table-container">
-                    <h4 class="mb-3">Recent Users</h4>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Course</th>
-                                    <th>Year Level</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in recent_users %}
-                                <tr>
-                                    <td>{{ user.id }}</td>
-                                    <td>{{ user.firstname }} {{ user.lastname }}</td>
-                                    <td>{{ user.email }}</td>
-                                    <td>{{ user.course }}</td>
-                                    <td>{{ user.yearlevel }}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-primary">Edit</button>
-                                        <button class="btn btn-sm btn-danger">Delete</button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted">Active Sessions</h6>
+                                <h3>{{ active_sessions }}</h3>
+                            </div>
+                            <i class="bi bi-clock"></i>
+                        </div>
                     </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted">Completed Today</h6>
+                                <h3>{{ today_completed_sessions }}</h3>
+                            </div>
+                            <i class="bi bi-check2-circle"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted">Hours Today</h6>
+                                <h3>{{ total_hours_today }}</h3>
+                            </div>
+                            <i class="bi bi-hourglass-split"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="courseChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="yearLevelChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Course and Year Level Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="table-container">
+                        <h4 class="mb-3">Course Distribution</h4>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Course</th>
+                                        <th>Number of Students</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in course_stats %}
+                                    <tr>
+                                        <td>{{ stat.course }}</td>
+                                        <td>{{ stat.count }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="table-container">
+                        <h4 class="mb-3">Year Level Distribution</h4>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Year Level</th>
+                                        <th>Number of Students</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in year_level_stats %}
+                                    <tr>
+                                        <td>{{ stat.yearlevel }}</td>
+                                        <td>{{ stat.count }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Users Table -->
+            <div class="table-container">
+                <h4 class="mb-3">Recent Users</h4>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Course</th>
+                                <th>Year Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in recent_users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.firstname }} {{ user.lastname }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.course }}</td>
+                                <td>{{ user.yearlevel }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -179,5 +292,82 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Chart Initialization -->
+    <script>
+        // Prepare data from server as JSON strings
+        const courseStats = JSON.parse('{{ course_stats|tojson|safe }}');
+        const yearLevelStats = JSON.parse('{{ year_level_stats|tojson|safe }}');
+
+        // Extract labels and data
+        const courseLabels = courseStats.map(stat => stat.course);
+        const courseData = courseStats.map(stat => stat.count);
+        const yearLabels = yearLevelStats.map(stat => stat.yearlevel);
+        const yearData = yearLevelStats.map(stat => stat.count);
+
+        // Course Distribution Chart
+        const courseCtx = document.getElementById('courseChart').getContext('2d');
+        const courseChart = new Chart(courseCtx, {
+            type: 'pie',
+            data: {
+                labels: courseLabels,
+                datasets: [{
+                    data: courseData,
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0',
+                        '#9966FF'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Course Distribution'
+                    },
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+
+        // Year Level Distribution Chart
+        const yearCtx = document.getElementById('yearLevelChart').getContext('2d');
+        const yearChart = new Chart(yearCtx, {
+            type: 'bar',
+            data: {
+                labels: yearLabels,
+                datasets: [{
+                    label: 'Number of Students',
+                    data: yearData,
+                    backgroundColor: '#1e3c72'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Year Level Distribution'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html> 
