@@ -27,83 +27,120 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 # Function to initialize database with admin table
 def init_db():
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    
-    # Create users table
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        firstname TEXT NOT NULL,
-        midname TEXT,
-        lastname TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        course TEXT NOT NULL,
-        yearlevel TEXT NOT NULL,
-        is_admin INTEGER DEFAULT 0
-    )
-    ''')
-    
-    # Create sessions table
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        end_time TIMESTAMP,
-        status TEXT DEFAULT 'active',
-        purpose TEXT,
-        lab_unit TEXT,
-        duration INTEGER,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-    )
-    ''')
-    
-    # Create reservations table
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS reservations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        date TEXT NOT NULL,
-        time TEXT NOT NULL,
-        purpose TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-    )
-    ''')
-    
-    # Create announcements table
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS announcements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        content TEXT NOT NULL,
-        priority TEXT DEFAULT 'normal',
-        created_by TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-    
-    # Create feedback table
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS feedback (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        rating INTEGER NOT NULL,
-        comments TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-    )
-    ''')
-    
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('users.db')
+        c = conn.cursor()
+        
+        # Create users table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                firstname TEXT NOT NULL,
+                midname TEXT,
+                lastname TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                course TEXT NOT NULL,
+                yearlevel TEXT NOT NULL,
+                is_admin INTEGER DEFAULT 0,
+                profile_pic TEXT
+            )
+        ''')
+        
+        # Create sessions table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                end_time TIMESTAMP,
+                status TEXT DEFAULT 'active',
+                purpose TEXT,
+                lab_unit TEXT,
+                duration INTEGER,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        # Create sit_in_history table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS sit_in_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                date DATE NOT NULL,
+                time_in TIMESTAMP NOT NULL,
+                time_out TIMESTAMP,
+                status TEXT DEFAULT 'active',
+                purpose TEXT,
+                lab_unit TEXT,
+                duration INTEGER,
+                allocated_duration INTEGER,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        # Create reservations table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS reservations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                time TEXT NOT NULL,
+                purpose TEXT NOT NULL,
+                lab_unit TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        # Create announcements table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS announcements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                priority TEXT DEFAULT 'normal',
+                created_by TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create feedback table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                rating INTEGER NOT NULL,
+                comments TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        # Check if admin user exists, if not create it
+        c.execute("SELECT * FROM users WHERE username = ?", (ADMIN_USERNAME,))
+        if not c.fetchone():
+            admin_password_hash = generate_password_hash(ADMIN_PASSWORD, method="pbkdf2:sha256")
+            c.execute("""
+                INSERT INTO users (username, password, firstname, lastname, midname, email, course, yearlevel, is_admin, profile_pic)
+                VALUES (?, ?, 'Admin', 'User', '', 'admin@example.com', 'N/A', 'N/A', 1, 'default.png')
+            """, (ADMIN_USERNAME, admin_password_hash))
+            print("Admin user created successfully!")
+        
+        conn.commit()
+        print("Database initialized successfully!")
+    except Exception as e:
+        print(f"Error initializing database: {e}")
+        raise e
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 # Initialize database when app starts
-init_db()
+with app.app_context():
+    init_db()
 
 # Function to fetch user details
 def get_user(username):
@@ -137,9 +174,22 @@ def update_session(username):
 # Admin authentication decorator
 def admin_required(f):
     def decorated_function(*args, **kwargs):
+        print("==== ADMIN REQUIRED DECORATOR ====")
+        print("Current session:", session)
+        print("'admin' in session:", 'admin' in session)
+        if 'admin' in session:
+            print("session['admin'] value:", session['admin'])
+        if 'user' in session:
+            print("User in session:", session['user'])
+            if 'is_admin' in session['user']:
+                print("user['is_admin'] value:", session['user']['is_admin'])
+        
         if "admin" not in session or not session["admin"]:
+            print("Admin authentication failed, redirecting to login")
             flash("Please login as admin first.", "error")
             return redirect(url_for("login_page"))
+        
+        print("Admin authentication successful")
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
@@ -153,7 +203,7 @@ def admin_dashboard():
     con.row_factory = sqlite3.Row
     cur = con.cursor()
 
-    # Get total users (excluding admins)
+    # Get total users (excluding admins) - "Students Registered"
     cur.execute("SELECT COUNT(*) as count FROM users WHERE is_admin = 0")
     total_users = cur.fetchone()['count']
 
@@ -167,28 +217,13 @@ def admin_dashboard():
     """)
     recent_users = [dict(row) for row in cur.fetchall()]
 
-    # Get active sessions count
-    cur.execute("SELECT COUNT(*) as count FROM sessions WHERE status = 'active'")
-    active_sessions = cur.fetchone()['count']
+    # Get currently sit-in count (active sessions in sit_in_history)
+    cur.execute("SELECT COUNT(*) as count FROM sit_in_history WHERE status = 'active'")
+    currently_sitin = cur.fetchone()['count']
 
-    # Get today's completed sessions
-    cur.execute("""
-        SELECT COUNT(*) as count 
-        FROM sessions 
-        WHERE DATE(end_time) = DATE('now') 
-        AND status = 'completed'
-    """)
-    today_completed_sessions = cur.fetchone()['count']
-
-    # Calculate total hours spent today
-    cur.execute("""
-        SELECT SUM(CAST((julianday(end_time) - julianday(start_time)) * 24 AS INTEGER)) as total_hours
-        FROM sessions 
-        WHERE DATE(end_time) = DATE('now') 
-        AND status = 'completed'
-    """)
-    result = cur.fetchone()
-    total_hours_today = result['total_hours'] if result['total_hours'] is not None else 0
+    # Get total sit-in count (all records in sit_in_history)
+    cur.execute("SELECT COUNT(*) as count FROM sit_in_history")
+    total_sitin = cur.fetchone()['count']
 
     # Get course statistics
     cur.execute("""
@@ -213,9 +248,8 @@ def admin_dashboard():
     return render_template("admin_dashboard.html",
                          total_users=total_users,
                          recent_users=recent_users,
-                         active_sessions=active_sessions,
-                         today_completed_sessions=today_completed_sessions,
-                         total_hours_today=total_hours_today,
+                         currently_sitin=currently_sitin,
+                         total_sitin=total_sitin,
                          course_stats=course_stats,
                          year_level_stats=year_level_stats)
 
@@ -255,7 +289,9 @@ def admin_sessions():
 
 @app.route("/admin/logout")
 def admin_logout():
-    session.pop("admin", None)
+    # Clear all session data
+    session.clear()
+    print("Admin logged out, session cleared:", session)
     flash("Admin logged out successfully!", "success")
     return redirect(url_for("login_page"))
 
@@ -310,9 +346,9 @@ def signup():
 
         # Insert user into the database using ID number as username
         cur.execute("""
-            INSERT INTO users (firstname, lastname, email, username, password, course, yearlevel, profile_pic)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (firstname, lastname, email, idno, hashed_password, course_name, year_name, "default.png"))
+            INSERT INTO users (firstname, lastname, midname, email, username, password, course, yearlevel, profile_pic)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (firstname, lastname, midname, email, idno, hashed_password, course_name, year_name, "default.png"))
 
         con.commit()
         con.close()
@@ -345,26 +381,55 @@ def login_page():
         username = request.form.get("un")
         password = request.form.get("pwd")
         is_admin = request.form.get("is_admin") == "on"
+        
+        print(f"Login attempt: username={username}, is_admin={is_admin}")
 
         if not username or not password:
             flash('Please fill out both fields.', 'error')
             return redirect(url_for('login_page'))
         
-        if check_login(username, password, is_admin):
-            if is_admin:
+        # Get user from database
+        user = get_user(username)
+        if not user:
+            flash('Invalid ID number or password.', 'error')
+            return redirect(url_for('login_page'))
+            
+        # Verify password
+        if not check_password_hash(user["password"], password):
+            flash('Invalid ID number or password.', 'error')
+            return redirect(url_for('login_page'))
+            
+        # Set up user session
+        session["user"] = {
+            "id": user["id"],
+            "firstname": user["firstname"],
+            "lastname": user["lastname"],
+            "email": user["email"],
+            "course": user["course"],
+            "yearlevel": user["yearlevel"],
+            "profile_pic": user["profile_pic"] if user["profile_pic"] else "default.png",
+            "is_admin": bool(user["is_admin"])
+        }
+        
+        # Admin login
+        if is_admin:
+            if user["is_admin"]:
+                session["admin"] = True
+                print(f"Admin login successful: {session}")
                 flash('Admin login successful!', 'success')
                 return redirect(url_for("admin_dashboard"))
-            return redirect(url_for("home"))
-        else:
-            if is_admin:
-                flash('Invalid admin credentials. Please check your ID number and password.', 'error')
             else:
-                user = get_user(username)
-                if user and user["is_admin"]:
-                    flash('Please check "Login as Administrator" to access the admin dashboard.', 'error')
-                else:
-                    flash('Invalid ID number or password.', 'error')
-            return redirect(url_for('login_page'))
+                session.pop("user", None)
+                flash('You do not have admin privileges.', 'error')
+                return redirect(url_for('login_page'))
+        else:
+            # Regular user login
+            if user["is_admin"]:
+                session.pop("user", None)
+                flash('Please check "Login as Administrator" to access the admin dashboard.', 'error')
+                return redirect(url_for('login_page'))
+                
+            return redirect(url_for("home"))
     
     return render_template("login.html")
 
@@ -567,12 +632,30 @@ def sit_in_history():
         con = sqlite3.connect("users.db")
         cur = con.cursor()
         
+        # First, check if sit_in_history table exists, if not create it
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS sit_in_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            time_in TIMESTAMP NOT NULL,
+            time_out TIMESTAMP,
+            status TEXT DEFAULT 'active',
+            purpose TEXT,
+            lab_unit TEXT,
+            duration INTEGER,
+            allocated_duration INTEGER,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        ''')
+        con.commit()
+        
         # Get user's session history
         cur.execute("""
-            SELECT id, start_time, end_time, duration, status
-            FROM sessions
-            WHERE user_id = ?
-            ORDER BY start_time DESC
+                SELECT id, date, time_in, time_out, status, duration, allocated_duration, purpose, lab_unit 
+                FROM sit_in_history
+                WHERE user_id = ?
+                ORDER BY time_in DESC
         """, (user_id,))
         history = cur.fetchall()
         
@@ -582,7 +665,7 @@ def sit_in_history():
                 COUNT(*) as total_sessions,
                 COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_sessions,
                 SUM(CASE WHEN duration IS NOT NULL THEN duration ELSE 0 END) as total_duration
-            FROM sessions
+                FROM sit_in_history
             WHERE user_id = ?
         """, (user_id,))
         stats = cur.fetchone()
@@ -594,11 +677,14 @@ def sit_in_history():
         for entry in history:
             formatted_entry = {
                 'id': entry[0],
-                'date': datetime.strptime(entry[1], '%Y-%m-%d %H:%M:%S.%f').strftime('%Y-%m-%d'),
-                'time_in': datetime.strptime(entry[1], '%Y-%m-%d %H:%M:%S.%f').strftime('%H:%M:%S'),
-                'time_out': datetime.strptime(entry[2], '%Y-%m-%d %H:%M:%S.%f').strftime('%H:%M:%S') if entry[2] else None,
-                'duration': entry[3],
-                'status': entry[4]
+                'date': entry[1],
+                'time_in': entry[2],
+                'time_out': entry[3] if entry[3] else None,
+                'status': entry[4],
+                'duration': entry[5],
+                'allocated_duration': entry[6],
+                'purpose': entry[7],
+                'lab_unit': entry[8]
             }
             formatted_history.append(formatted_entry)
         
@@ -611,8 +697,6 @@ def sit_in_history():
         
         return render_template('sit_in_history.html', history=formatted_history, stats=statistics)
     except Exception as e:
-        if con:
-            con.close()
         flash('Error loading history: ' + str(e), 'error')
         return redirect(url_for('home'))
 
@@ -751,56 +835,64 @@ def search_student(student_id):
 @admin_required
 def start_sitin():
     data = request.json
-    student_id = data.get("studentId")
-    purpose = data.get("purpose")
-    lab_unit = data.get("labUnit")
-    session_id = data.get("sessionId")  # For starting scheduled sessions
-    
-    if not all([student_id, purpose, lab_unit]):
-        return jsonify({"success": False, "error": "Missing required fields"})
-    
+    student_id = data.get('student_id')
+    purpose = data.get('purpose')
+    lab_unit = data.get('lab_unit')
+    duration = data.get('duration', 60)  # Default to 60 minutes if not specified
+
     try:
         con = sqlite3.connect("users.db")
         cur = con.cursor()
         
-        # Get user ID from username
+        # First, ensure the sit_in_history table exists
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS sit_in_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            time_in TIMESTAMP NOT NULL,
+            time_out TIMESTAMP,
+            status TEXT DEFAULT 'active',
+            purpose TEXT,
+            lab_unit TEXT,
+            duration INTEGER,
+            allocated_duration INTEGER,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        ''')
+        con.commit()
+        
+        current_time = datetime.now()
+
+        # Get user_id from student_id
         cur.execute("SELECT id FROM users WHERE username = ?", (student_id,))
-        user = cur.fetchone()
-        if not user:
+        user_data = cur.fetchone()
+        
+        if not user_data:
             return jsonify({"success": False, "error": "Student not found"})
         
-        user_id = user[0]
-        current_time = datetime.now()
-        
-        # Check if user already has an active session
+        user_id = user_data[0]
+
+        # Check if user has an active session in either table
         cur.execute("""
-            SELECT id FROM sessions 
-            WHERE user_id = ? AND status = 'active'
-        """, (user_id,))
+            SELECT 
+                CASE 
+                    WHEN EXISTS (SELECT 1 FROM sessions WHERE user_id = ? AND status = 'active')
+                    OR EXISTS (SELECT 1 FROM sit_in_history WHERE user_id = ? AND status = 'active')
+                    THEN 1
+                    ELSE 0
+                END as has_active_session
+        """, (user_id, user_id))
+        has_active_session = cur.fetchone()[0]
         
-        if cur.fetchone():
-            return jsonify({"success": False, "error": "Student already has an active session"})
-        
-        if session_id:
-            # Update scheduled session to active
-            cur.execute("""
-                UPDATE sessions 
-                SET status = 'active', 
-                    start_time = ?
-                WHERE id = ? AND status = 'scheduled'
-            """, (current_time, session_id))
-        else:
-            # Create new session
-            cur.execute("""
-                INSERT INTO sessions (user_id, start_time, status, purpose, lab_unit)
-                VALUES (?, ?, 'active', ?, ?)
-            """, (user_id, current_time, purpose, lab_unit))
-        
+        if has_active_session:
+            return jsonify({"success": False, "error": "User already has an active session"})
+
         # Create sit-in history entry
         cur.execute("""
-            INSERT INTO sit_in_history (user_id, date, time_in, status, purpose, lab_unit)
-            VALUES (?, ?, ?, 'active', ?, ?)
-        """, (user_id, current_time.date(), current_time, purpose, lab_unit))
+            INSERT INTO sit_in_history (user_id, date, time_in, status, purpose, lab_unit, allocated_duration)
+            VALUES (?, ?, ?, 'active', ?, ?, ?)
+        """, (user_id, current_time.date(), current_time, purpose, lab_unit, duration))
         
         con.commit()
         return jsonify({"success": True})
@@ -808,7 +900,8 @@ def start_sitin():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
     finally:
-        con.close()
+        if 'con' in locals() and con:
+            con.close()
 
 @app.route("/api/end_sitin/<int:session_id>", methods=["POST"])
 @admin_required
@@ -818,29 +911,14 @@ def end_sitin(session_id):
         cur = con.cursor()
         current_time = datetime.now()
         
-        # Update session
+        # Update sit-in history directly using session_id
         cur.execute("""
-            UPDATE sessions 
-            SET end_time = ?, 
+            UPDATE sit_in_history 
+            SET time_out = ?, 
                 status = 'completed',
-                duration = CAST((julianday(?) - julianday(start_time)) * 24 * 3600 AS INTEGER)
+                duration = CAST((julianday(?) - julianday(time_in)) * 24 * 3600 AS INTEGER)
             WHERE id = ? AND status = 'active'
         """, (current_time, current_time, session_id))
-        
-        # Get user_id from session
-        cur.execute("SELECT user_id FROM sessions WHERE id = ?", (session_id,))
-        session_data = cur.fetchone()
-        
-        if session_data:
-            user_id = session_data[0]
-            # Update sit-in history
-            cur.execute("""
-                UPDATE sit_in_history 
-                SET time_out = ?, 
-                    status = 'completed',
-                    duration = CAST((julianday(?) - julianday(time_in)) * 24 * 3600 AS INTEGER)
-                WHERE user_id = ? AND status = 'active'
-            """, (current_time, current_time, user_id))
         
         con.commit()
         return jsonify({"success": True})
@@ -926,18 +1004,48 @@ def admin_reservations():
 @app.route("/api/get_pending_reservations")
 @admin_required
 def get_pending_reservations():
-    con = get_db()
-    cur = con.cursor()
-    cur.execute("""
-        SELECT r.*, u.firstname, u.lastname, u.course, u.yearlevel
-        FROM reservations r
-        JOIN users u ON r.user_id = u.id
-        WHERE r.status = 'pending'
-        ORDER BY r.date, r.time
-    """)
-    reservations = [dict(row) for row in cur.fetchall()]
-    con.close()
-    return jsonify({"success": True, "reservations": reservations})
+    try:
+        con = get_db()
+        cur = con.cursor()
+        
+        # Debug: Check if reservations table exists
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='reservations'")
+        if not cur.fetchone():
+            return jsonify({"success": False, "error": "Reservations table does not exist"})
+        
+        # Debug: Get all reservations regardless of status
+        cur.execute("""
+            SELECT r.*, u.firstname, u.lastname, u.course, u.yearlevel
+            FROM reservations r
+            JOIN users u ON r.user_id = u.id
+            ORDER BY r.date, r.time
+        """)
+        all_reservations = [dict(row) for row in cur.fetchall()]
+        
+        # Get pending reservations
+        cur.execute("""
+            SELECT r.*, u.firstname, u.lastname, u.course, u.yearlevel
+            FROM reservations r
+            JOIN users u ON r.user_id = u.id
+            WHERE r.status = 'pending'
+            ORDER BY r.date, r.time
+        """)
+        pending_reservations = [dict(row) for row in cur.fetchall()]
+        
+        con.close()
+        
+        return jsonify({
+            "success": True, 
+            "reservations": pending_reservations,
+            "debug": {
+                "all_count": len(all_reservations),
+                "pending_count": len(pending_reservations),
+                "all_reservations": all_reservations[:5]  # Just send first 5 for debugging
+            }
+        })
+    except Exception as e:
+        print("Error in get_pending_reservations:", str(e))
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/approve_reservation/<int:reservation_id>", methods=["POST"])
 @admin_required
@@ -1118,20 +1226,21 @@ def get_filtered_sessions():
     cursor = db.cursor()
     
     query = """
-        SELECT s.*, u.username as student_id, u.firstname, u.lastname,
-        CAST((julianday(COALESCE(s.end_time, datetime('now'))) - julianday(s.start_time)) * 24 * 60 as INTEGER) as duration
-        FROM sessions s
+        SELECT s.id, u.username as student_id, u.firstname, u.lastname,
+        s.time_in as start_time, s.time_out as end_time, s.purpose, s.lab_unit,
+        CAST((julianday(COALESCE(s.time_out, datetime('now'))) - julianday(s.time_in)) * 24 * 60 as INTEGER) as duration
+        FROM sit_in_history s
         JOIN users u ON s.user_id = u.id
     """
     
     if filter_type == 'today':
-        query += " WHERE DATE(s.start_time) = DATE('now')"
+        query += " WHERE DATE(s.time_in) = DATE('now')"
     elif filter_type == 'week':
-        query += " WHERE s.start_time >= datetime('now', '-7 days')"
+        query += " WHERE s.time_in >= datetime('now', '-7 days')"
     elif filter_type == 'month':
-        query += " WHERE s.start_time >= datetime('now', '-30 days')"
+        query += " WHERE s.time_in >= datetime('now', '-30 days')"
     
-    query += " ORDER BY s.start_time DESC"
+    query += " ORDER BY s.time_in DESC"
     
     cursor.execute(query)
     sessions = cursor.fetchall()
@@ -1150,7 +1259,7 @@ def export_sessions():
     cursor.execute("""
         SELECT s.id, u.username as student_id, u.firstname, u.lastname,
         s.start_time, s.end_time,
-        CAST((julianday(COALESCE(s.end_time, datetime('now'))) - julianday(s.start_time)) * 24 * 60 as INTEGER) as duration
+        CAST((julianday(COALESCE(s.end_time, datetime('now'))) - julianday(s.start_time)) * 24 * 60 as duration
         FROM sessions s
         JOIN users u ON s.user_id = u.id
         ORDER BY s.start_time DESC
@@ -1258,48 +1367,72 @@ def delete_announcement(announcement_id):
 @app.route("/admin/sitin")
 @admin_required
 def admin_sitin():
-    # Get database connection
-    conn = get_db()
-    cur = conn.cursor()
-
-    # Get statistics
-    cur.execute("""
-        SELECT 
-            COUNT(*) as total_records,
-            SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_sessions,
-            SUM(CASE WHEN date(time_in) = date('now') THEN 1 ELSE 0 END) as today_sessions,
-            SUM(CASE WHEN date(time_in) = date('now') AND time_out IS NOT NULL 
-                THEN round((julianday(time_out) - julianday(time_in)) * 24)
-                ELSE 0 END) as total_hours_today
-        FROM sit_in_history
-    """)
-    stats = dict(zip(['total_records', 'active_sessions', 'today_sessions', 'total_hours_today'], 
-                    cur.fetchone()))
-
-    # Get all sit-in records with user information
-    cur.execute("""
-        SELECT 
-            s.id as session_id,
-            u.username as student_id,
-            u.firstname || ' ' || u.lastname as student_name,
-            u.course,
-            u.yearlevel,
-            datetime(s.time_in) as time_in,
-            datetime(s.time_out) as time_out,
-            CASE 
-                WHEN s.time_out IS NOT NULL 
-                THEN round((julianday(s.time_out) - julianday(s.time_in)) * 24, 1)
-                ELSE NULL 
-            END as duration,
-            s.status
-        FROM sit_in_history s
-        JOIN users u ON s.user_id = u.id
-        ORDER BY s.time_in DESC
-    """)
-    records = [dict(zip([column[0] for column in cur.description], row))
-              for row in cur.fetchall()]
-
-    return render_template('admin_sitin.html', stats=stats, records=records)
+    # Debug session information
+    print("Session info:", session)
+    print("Is admin in session?", "admin" in session)
+    if "admin" in session:
+        print("Admin value:", session["admin"])
+    print("User info:", session.get("user", {}))
+    
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        # Get statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(CASE WHEN time_out IS NULL THEN 1 END) as active_sessions,
+                COUNT(*) as total_records,
+                COUNT(CASE WHEN DATE(time_in) = DATE('now', 'localtime') THEN 1 END) as today_sessions,
+                SUM(CASE 
+                    WHEN DATE(time_in) = DATE('now', 'localtime') THEN 
+                        CASE 
+                            WHEN time_out IS NOT NULL THEN 
+                                (julianday(time_out) - julianday(time_in)) * 24
+                            ELSE 
+                                (julianday('now', 'localtime') - julianday(time_in)) * 24
+                        END
+                    ELSE 0 
+                END) as total_hours_today
+            FROM sit_in_history
+        """)
+        stats = dict(zip(['active_sessions', 'total_records', 'today_sessions', 'total_hours_today'], cursor.fetchone()))
+        
+        # Format the total hours
+        if stats['total_hours_today'] is not None:
+            stats['total_hours_today'] = f"{stats['total_hours_today']:.1f}"
+        else:
+            stats['total_hours_today'] = "0.0"
+        
+        # Get sit-in records
+        cursor.execute("""
+            SELECT 
+                s.id as session_id,
+                u.username as student_id,
+                u.firstname || ' ' || u.lastname as student_name,
+                u.course,
+                u.yearlevel,
+                datetime(s.time_in, 'localtime') as time_in,
+                datetime(s.time_out, 'localtime') as time_out,
+                CASE
+                    WHEN s.time_out IS NOT NULL THEN 
+                        ROUND((julianday(s.time_out) - julianday(s.time_in)) * 24 * 60) || ' min'
+                    ELSE NULL
+                END as duration,
+                CASE WHEN s.time_out IS NULL THEN 'active' ELSE 'completed' END as status
+            FROM sit_in_history s
+            JOIN users u ON s.user_id = u.id
+            ORDER BY s.time_in DESC
+        """)
+        records = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
+        
+        cursor.close()
+        
+        return render_template("admin_sitin.html", stats=stats, records=records)
+    except Exception as e:
+        print(f"Error in admin_sitin: {str(e)}")
+        flash('Error: ' + str(e), 'error')
+        return redirect(url_for('admin_dashboard'))
 
 @app.route("/api/export_sitin_records")
 @admin_required
@@ -1549,5 +1682,65 @@ def add_user():
         if 'con' in locals():
             con.close()
 
+@app.route("/api/student_info", methods=["POST"])
+@admin_required
+def get_student_info():
+    data = request.json
+    student_id = data.get('student_id')
+    
+    if not student_id:
+        return jsonify({"success": False, "error": "No student ID provided"})
+    
+    try:
+        con = sqlite3.connect("users.db")
+        cur = con.cursor()
+        
+        # Get student details
+        cur.execute("""
+            SELECT id, firstname, lastname, course, yearlevel
+            FROM users
+            WHERE username = ? AND is_admin = 0
+        """, (student_id,))
+        
+        student = cur.fetchone()
+        
+        if not student:
+            return jsonify({"success": False, "error": "Student not found"})
+        
+        user_id = student[0]
+        
+        # Check if student has active sessions
+        cur.execute("""
+            SELECT 
+                CASE 
+                    WHEN EXISTS (SELECT 1 FROM sessions WHERE user_id = ? AND status = 'active')
+                    OR EXISTS (SELECT 1 FROM sit_in_history WHERE user_id = ? AND status = 'active')
+                    THEN 1
+                    ELSE 0
+                END as has_active_session
+        """, (user_id, user_id))
+        
+        has_active_session = cur.fetchone()[0]
+        status = "Active Session" if has_active_session else "Available"
+        
+        student_info = {
+            "success": True,
+            "student_name": f"{student[1]} {student[2]}",
+            "course": student[3],
+            "yearlevel": student[4],
+            "status": status,
+            "user_id": user_id
+        }
+        
+        return jsonify(student_info)
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+    finally:
+        if 'con' in locals() and con:
+            con.close()
+
 if __name__ == "__main__":
+    # Initialize the database before starting the app
+    init_db()
     app.run(debug=True)

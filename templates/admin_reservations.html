@@ -160,7 +160,11 @@
                         const reservationsList = document.getElementById('reservationsList');
                         reservationsList.innerHTML = '';
 
-                        if (data.reservations.length === 0) {
+                        if (data.debug) {
+                            console.log('Debug info:', data.debug);
+                        }
+
+                        if (!data.reservations || data.reservations.length === 0) {
                             reservationsList.innerHTML = `
                                 <div class="text-center py-5">
                                     <i class="bi bi-calendar-x" style="font-size: 3rem; color: #1e3c72;"></i>
@@ -197,7 +201,24 @@
                             `;
                             reservationsList.appendChild(card);
                         });
+                    } else {
+                        const reservationsList = document.getElementById('reservationsList');
+                        reservationsList.innerHTML = `
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> ${data.error || 'Failed to load reservations'}
+                            </div>
+                        `;
+                        console.error('Error loading reservations:', data.error);
                     }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    const reservationsList = document.getElementById('reservationsList');
+                    reservationsList.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>Network Error:</strong> Could not connect to server
+                        </div>
+                    `;
                 });
         }
 
