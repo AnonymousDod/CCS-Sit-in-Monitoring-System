@@ -93,16 +93,6 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_announcements') }}">
-                            <i class="bi bi-megaphone"></i>Announcements
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_sitin') }}">
-                            <i class="bi bi-pc-display"></i>Sit-in
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin_reservations') }}">
                             <i class="bi bi-calendar-check"></i>Reservations
                         </a>
@@ -133,33 +123,61 @@
                     <i class="bi bi-person-plus me-2"></i>Add New User
                 </button>
             </div>
-
-            <!-- Search Box -->
-            <div class="search-box mb-4">
-                <div class="row">
-                    <div class="col-md-4">
-                        <input type="text" class="form-control" placeholder="Search users...">
+            
+            <!-- Course and Year Level Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Course Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Course</th>
+                                            <th>Number of Students</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for stat in course_stats %}
+                                        <tr>
+                                            <td>{{ stat.course }}</td>
+                                            <td>{{ stat.count }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-3">
-                        <select class="form-select">
-                            <option value="">All Courses</option>
-                            <option>Information Technology</option>
-                            <option>Computer Engineering</option>
-                            <option>Criminology</option>
-                            <option>Customs Administration</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select">
-                            <option value="">All Year Levels</option>
-                            <option>1st Year</option>
-                            <option>2nd Year</option>
-                            <option>3rd Year</option>
-                            <option>4th Year</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <button class="btn btn-primary w-100">Filter</button>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Year Level Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Year Level</th>
+                                            <th>Number of Students</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for stat in year_level_stats %}
+                                        <tr>
+                                            <td>{{ stat.yearlevel }}</td>
+                                            <td>{{ stat.count }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -391,11 +409,24 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script>
         $(document).ready(function() {
             $('#usersTable').DataTable({
                 order: [[0, 'desc']]
             });
+        });
+
+        // Chart Initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prepare data from server as JSON strings
+            const courseStats = JSON.parse('{{ course_stats|tojson|safe }}');
+            const yearLevelStats = JSON.parse('{{ year_level_stats|tojson|safe }}');
+
+            // These values are still needed for the tables
+            
         });
 
         function viewUserDetails(userId) {

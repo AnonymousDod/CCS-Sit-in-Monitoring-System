@@ -50,6 +50,28 @@
             background-color: #bb2d3b;
             border-color: #b02a37;
         }
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .stats-icon {
+            font-size: 2rem;
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+        .stats-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+        .stats-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -81,16 +103,6 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_announcements') }}">
-                            <i class="bi bi-megaphone"></i>Announcements
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_sitin') }}">
-                            <i class="bi bi-pc-display"></i>Sit-in
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin_reservations') }}">
                             <i class="bi bi-calendar-check"></i>Reservations
                         </a>
@@ -115,7 +127,63 @@
     <!-- Main Content -->
     <div class="main-content">
         <div class="container-fluid">
-            <h2 class="mb-4">Current Sit in</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Current Sit-in Sessions</h2>
+                <div>
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-success dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-file-earmark-text me-2"></i>Generate Report
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="reportDropdown">
+                            <li><h6 class="dropdown-header">Select export format</h6></li>
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="exportTo('excel')">
+                                <i class="bi bi-file-earmark-excel me-2"></i>Excel (.xlsx)
+                            </a></li>
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="exportTo('csv')">
+                                <i class="bi bi-file-earmark-text me-2"></i>CSV
+                            </a></li>
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="exportTo('pdf')">
+                                <i class="bi bi-file-earmark-pdf me-2"></i>PDF
+                            </a></li>
+                        </ul>
+                    </div>
+                    <button class="btn btn-primary ms-2" onclick="loadSessions()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics Row -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <i class="bi bi-people stats-icon"></i>
+                        <div class="stats-value">{{ stats.active_sessions }}</div>
+                        <div class="stats-label">Currently Active</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <i class="bi bi-clock-history stats-icon"></i>
+                        <div class="stats-value">{{ stats.total_records }}</div>
+                        <div class="stats-label">Total Sit-in Sessions</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <i class="bi bi-calendar-check stats-icon"></i>
+                        <div class="stats-value">{{ stats.today_sessions }}</div>
+                        <div class="stats-label">Sessions Today</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <i class="bi bi-hourglass-split stats-icon"></i>
+                        <div class="stats-value">{{ stats.total_hours_today }}</div>
+                        <div class="stats-label">Hours Today</div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Simple Sessions Table -->
             <div class="card">
@@ -127,10 +195,14 @@
                                     <th>Sit ID Number</th>
                                     <th>ID Number</th>
                                     <th>Name</th>
+                                    <th>Date</th>
+                                    <th>Time In</th>
+                                    <th>Time Out</th>
                                     <th>Purpose</th>
                                     <th>Sit Lab</th>
                                     <th>Session</th>
                                     <th>Status</th>
+                                    <th>Remaining</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -164,16 +236,25 @@
 
             // Load sessions data
             loadSessions();
+            
+            // Auto-refresh sessions data every 10 seconds
+            setInterval(loadSessions, 10000);
         });
 
         function loadSessions() {
             fetch('/api/get_filtered_sessions')
                 .then(response => response.json())
                 .then(data => {
+                    // Add debug logging
+                    console.log('Sessions API response:', data);
+                    
                     if (data.success) {
                         // Clear existing table data
                         sessionsTable.clear();
 
+                        // Log the number of sessions received
+                        console.log(`Received ${data.sessions ? data.sessions.length : 0} sessions`);
+                        
                         // Add new data
                         data.sessions.forEach(session => {
                             const isActive = !session.end_time;
@@ -186,15 +267,24 @@
                             const sessionTime = isActive ? 
                                 formatTimeSince(new Date(session.start_time)) : 
                                 formatDuration(session.duration);
+                                
+                            // Format date and times for display
+                            const date = new Date(session.start_time).toLocaleDateString();
+                            const timeIn = new Date(session.start_time).toLocaleTimeString();
+                            const timeOut = session.end_time ? new Date(session.end_time).toLocaleTimeString() : '-';
 
                             sessionsTable.row.add([
                                 session.id,
                                 session.student_id,
                                 `${session.firstname} ${session.lastname}`,
+                                date,
+                                timeIn,
+                                timeOut,
                                 session.purpose || '-',
                                 session.lab_unit || '-',
                                 sessionTime,
                                 status,
+                                session.remaining_sessions || '-',
                                 actions
                             ]);
                         });
@@ -205,7 +295,7 @@
                             // Display "No data available" message
                             const tbody = document.querySelector('#sessionsTable tbody');
                             if (tbody) {
-                                tbody.innerHTML = '<tr><td colspan="8" class="text-center">No data available</td></tr>';
+                                tbody.innerHTML = '<tr><td colspan="9" class="text-center">No data available</td></tr>';
                             }
                         }
                     }
@@ -235,18 +325,42 @@
 
         function endSession(sessionId) {
             if (confirm('Are you sure you want to end this session?')) {
+                console.log(`Ending session with ID: ${sessionId}`);
+                
                 fetch(`/api/end_sitin/${sessionId}`, {
                     method: 'POST'
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('End session response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('End session response data:', data);
+                    
                     if (data.success) {
+                        alert('Session ended successfully');
                         // Reload data
                         loadSessions();
                     } else {
-                        alert(data.error || 'Error ending session');
+                        alert(`Error ending session: ${data.error || 'Unknown error'}`);
                     }
+                })
+                .catch(error => {
+                    console.error('Error ending session:', error);
+                    alert(`Error ending session: ${error.message || 'Network error'}`);
                 });
+            }
+        }
+        
+        function exportTo(format) {
+            const formatLabels = {
+                'excel': 'Excel',
+                'csv': 'CSV',
+                'pdf': 'PDF'
+            };
+            
+            if(confirm(`Generate sessions report in ${formatLabels[format]} format?`)) {
+                window.location.href = `/api/export_sessions?format=${format}`;
             }
         }
     </script>

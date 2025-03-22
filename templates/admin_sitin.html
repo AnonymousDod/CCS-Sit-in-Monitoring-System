@@ -150,11 +150,11 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2>Sit-in Records</h2>
                 <div>
-                    <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#startSitinModal">
-                        <i class="bi bi-plus-circle me-2"></i>Start Sit-in
+                    <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#updateSessionsModal">
+                        <i class="bi bi-plus-circle"></i> Update Sessions
                     </button>
-                    <button class="btn btn-primary" onclick="exportRecords()">
-                        <i class="bi bi-download me-2"></i>Export Records
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#startSitinModal">
+                        <i class="bi bi-play-circle"></i> Start Sit-in
                     </button>
                 </div>
             </div>
@@ -204,7 +204,7 @@
                                 <th>Year Level</th>
                                 <th>Time In</th>
                                 <th>Time Out</th>
-                                <th>Duration</th>
+                                <th>Remaining Time</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -219,7 +219,13 @@
                                 <td>{{ record.yearlevel }}</td>
                                 <td>{{ record.time_in }}</td>
                                 <td>{{ record.time_out or 'Active' }}</td>
-                                <td>{{ record.duration or '-' }}</td>
+                                <td>
+                                    {% if record.status == 'active' %}
+                                        <span class="timer" data-start="{{ record.time_in }}" data-duration="{{ record.duration }}">Loading...</span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <span class="badge {% if record.status == 'active' %}bg-primary{% else %}bg-success{% endif %}">
                                         {{ record.status|title }}
@@ -274,11 +280,24 @@
                                     <p class="mb-1"><strong>Status:</strong> <span id="studentStatus" class="badge bg-success">-</span></p>
                                 </div>
                             </div>
+                            <div class="alert alert-info mt-2">
+                                <p class="mb-0 text-center"><strong>Remaining Sessions Available: <span id="remainingSessions" class="fs-5">-</span></strong></p>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Purpose</label>
-                            <textarea class="form-control" id="purpose" rows="3" required></textarea>
+                            <select class="form-control" id="purpose" required>
+                                <option value="">Select a purpose</option>
+                                <option value="Academic Research">Academic Research</option>
+                                <option value="Programming Practice">Programming Practice</option>
+                                <option value="Project Work">Project Work</option>
+                                <option value="Assignment">Assignment</option>
+                                <option value="Lab Exercise">Lab Exercise</option>
+                                <option value="Group Study">Group Study</option>
+                                <option value="Online Class">Online Class</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Lab Unit</label>
@@ -289,15 +308,45 @@
                                 <option value="Lab 4">Lab 4</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Duration (minutes)</label>
-                            <input type="number" class="form-control" id="duration" min="15" step="15" value="60" required>
-                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" id="startSitinBtn" onclick="startSitin()">Start Session</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Sessions Modal -->
+    <div class="modal fade" id="updateSessionsModal" tabindex="-1" aria-labelledby="updateSessionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateSessionsModalLabel">Update Remaining Sessions</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateSessionsForm">
+                        <div class="mb-3">
+                            <label for="updateStudentId" class="form-label">Student ID</label>
+                            <input type="text" class="form-control" id="updateStudentId" required>
+                            <div class="invalid-feedback">
+                                Please enter a valid Student ID.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="updateRemainingSessions" class="form-label">Remaining Sessions</label>
+                            <input type="number" class="form-control" id="updateRemainingSessions" min="0" required>
+                            <div class="invalid-feedback">
+                                Please enter a valid number of remaining sessions.
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="updateRemainingSessions()">Update</button>
                 </div>
             </div>
         </div>
@@ -317,6 +366,10 @@
                     pageLength: 10
                 });
                 console.log("DataTable initialized successfully");
+                
+                // Start the timer update interval
+                setInterval(updateTimers, 1000);
+                updateTimers(); // Initial update
             } catch (error) {
                 console.error("Error initializing DataTable:", error);
             }
@@ -347,13 +400,26 @@
                     document.getElementById('studentCourse').textContent = data.course;
                     document.getElementById('studentYear').textContent = data.yearlevel;
                     
+                    // Update remaining sessions with appropriate styling
+                    const remainingSessionsElement = document.getElementById('remainingSessions');
+                    remainingSessionsElement.textContent = data.remaining_sessions;
+                    
+                    // Add color coding based on remaining sessions
+                    if (data.remaining_sessions <= 0) {
+                        remainingSessionsElement.className = "fs-5 text-danger fw-bold";
+                    } else if (data.remaining_sessions < 5) {
+                        remainingSessionsElement.className = "fs-5 text-warning fw-bold";
+                    } else {
+                        remainingSessionsElement.className = "fs-5 text-success fw-bold";
+                    }
+                    
                     const statusElement = document.getElementById('studentStatus');
                     statusElement.textContent = data.status;
                     
                     // Set status badge color based on availability
                     if (data.status === "Available") {
                         statusElement.className = "badge bg-success";
-                        document.getElementById('startSitinBtn').disabled = false;
+                        document.getElementById('startSitinBtn').disabled = data.remaining_sessions <= 0;
                     } else {
                         statusElement.className = "badge bg-danger";
                         document.getElementById('startSitinBtn').disabled = true;
@@ -381,20 +447,18 @@
             const studentId = document.getElementById('studentId').value;
             const purpose = document.getElementById('purpose').value;
             const labUnit = document.getElementById('labUnit').value;
-            const duration = document.getElementById('duration').value;
 
             // Check if student info is displayed
             if (document.getElementById('studentInfo').style.display === 'none') {
-                alert('Please search for a valid student first');
+                alert('Please search for a student first');
                 return;
             }
 
-            if (!studentId || !purpose || !labUnit || !duration) {
+            if (!studentId || !purpose || !labUnit) {
                 alert('Please fill in all required fields');
                 return;
             }
 
-            console.log("Making API call to start sit-in");
             fetch('/api/start_sitin', {
                 method: 'POST',
                 headers: {
@@ -403,28 +467,30 @@
                 body: JSON.stringify({
                     student_id: studentId,
                     purpose: purpose,
-                    lab_unit: labUnit,
-                    duration: duration
+                    lab_unit: labUnit
                 })
             })
             .then(response => response.json())
             .then(data => {
-                console.log("Received response:", data);
                 if (data.success) {
-                    // Close modal and reset form
+                    alert(`Sit-in session started successfully for ${data.student_name}. Remaining sessions: ${data.remaining_sessions}`);
+                    
+                    // Close modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById('startSitinModal'));
                     modal.hide();
+                    
+                    // Reset form
                     document.getElementById('startSitinForm').reset();
                     document.getElementById('studentInfo').style.display = 'none';
                     
-                    // Reload page to show new record
-                    window.location.reload();
+                    // Optionally refresh sit-in records
+                    loadRecords();
                 } else {
                     alert(data.error || 'Failed to start sit-in session');
                 }
             })
             .catch(error => {
-                console.error("API call error:", error);
+                console.error('Error:', error);
                 alert('Error starting sit-in session');
             });
         }
@@ -454,6 +520,70 @@
                     console.error("API call error:", error);
                     alert('Error ending session');
                 });
+            }
+        }
+
+        function updateTimers() {
+            document.querySelectorAll('.timer').forEach(timer => {
+                const startTime = new Date(timer.dataset.start);
+                const allocatedDuration = parseInt(timer.dataset.duration) * 60; // Convert minutes to seconds
+                const now = new Date();
+                const elapsedSeconds = Math.floor((now - startTime) / 1000);
+                const remainingSeconds = Math.max(0, allocatedDuration - elapsedSeconds);
+                
+                const hours = Math.floor(remainingSeconds / 3600);
+                const minutes = Math.floor((remainingSeconds % 3600) / 60);
+                const seconds = remainingSeconds % 60;
+                
+                timer.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Add warning class if less than 15 minutes remaining
+                if (remainingSeconds < 900) { // 15 minutes = 900 seconds
+                    timer.classList.add('text-danger');
+                }
+            });
+        }
+
+        async function updateRemainingSessions() {
+            const form = document.getElementById('updateSessionsForm');
+            const studentId = document.getElementById('updateStudentId').value;
+            const remainingSessions = document.getElementById('updateRemainingSessions').value;
+            
+            // Form validation
+            if (!studentId || remainingSessions === '') {
+                // Add Bootstrap validation class
+                form.classList.add('was-validated');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/update_remaining_sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        remaining_sessions: parseInt(remainingSessions)
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    // Close the modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('updateSessionsModal'));
+                    modal.hide();
+                    // Clear the form
+                    document.getElementById('updateSessionsForm').reset();
+                    form.classList.remove('was-validated');
+                } else {
+                    alert(data.error || 'Failed to update remaining sessions');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while updating remaining sessions');
             }
         }
     </script>

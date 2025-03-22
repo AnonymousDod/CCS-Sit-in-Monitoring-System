@@ -1,15 +1,22 @@
-from flask import Flask, request, render_template, redirect, url_for, flash, session, jsonify, Response, make_response
+from flask import Flask, request, render_template, redirect, url_for, flash, session, jsonify, Response, make_response, send_file
 import sqlite3
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import csv
 from io import StringIO
 from functools import wraps
 import random
 import string
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill
+import tempfile
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -44,7 +51,8 @@ def init_db():
                 course TEXT NOT NULL,
                 yearlevel TEXT NOT NULL,
                 is_admin INTEGER DEFAULT 0,
-                profile_pic TEXT
+                profile_pic TEXT,
+                remaining_sessions INTEGER DEFAULT 0
             )
         ''')
         
@@ -131,6 +139,16 @@ def init_db():
         
         conn.commit()
         print("Database initialized successfully!")
+        
+        # Update existing users with remaining sessions
+        try:
+            c.execute("ALTER TABLE users ADD COLUMN remaining_sessions INTEGER DEFAULT 0")
+            conn.commit()
+            print("Added remaining_sessions column to users table")
+        except sqlite3.OperationalError:
+            # Column already exists, ignore the error
+            pass
+            
     except Exception as e:
         print(f"Error initializing database: {e}")
         raise e
@@ -199,59 +217,94 @@ def admin_required(f):
 @admin_required
 def admin_dashboard():
     # Get statistics
-    con = sqlite3.connect("users.db")
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
-
-    # Get total users (excluding admins) - "Students Registered"
-    cur.execute("SELECT COUNT(*) as count FROM users WHERE is_admin = 0")
-    total_users = cur.fetchone()['count']
-
-    # Get recent users (last 5, excluding admins)
-    cur.execute("""
-        SELECT username, firstname, lastname, email, course, yearlevel 
-        FROM users 
-        WHERE is_admin = 0 
-        ORDER BY id DESC 
-        LIMIT 5
-    """)
-    recent_users = [dict(row) for row in cur.fetchall()]
-
-    # Get currently sit-in count (active sessions in sit_in_history)
-    cur.execute("SELECT COUNT(*) as count FROM sit_in_history WHERE status = 'active'")
-    currently_sitin = cur.fetchone()['count']
-
-    # Get total sit-in count (all records in sit_in_history)
-    cur.execute("SELECT COUNT(*) as count FROM sit_in_history")
-    total_sitin = cur.fetchone()['count']
-
-    # Get course statistics
-    cur.execute("""
+    conn = sqlite3.connect('users.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get active users count
+    cursor.execute("SELECT COUNT(*) FROM users WHERE is_admin = 0")
+    active_users = cursor.fetchone()[0]
+    
+    # Get active sessions count
+    cursor.execute("SELECT COUNT(*) FROM sit_in_history WHERE time_out IS NULL")
+    active_sessions = cursor.fetchone()[0]
+    
+    # Get total records count
+    cursor.execute("SELECT COUNT(*) FROM sit_in_history")
+    total_records = cursor.fetchone()[0]
+    
+    # Get today's sessions count
+    today = datetime.now().strftime('%Y-%m-%d')
+    cursor.execute("SELECT COUNT(*) FROM sit_in_history WHERE date(time_in) = ?", (today,))
+    today_sessions = cursor.fetchone()[0]
+    
+    # Get total hours for today
+    cursor.execute("""
+        SELECT SUM(
+            CASE
+                WHEN time_out IS NULL THEN (strftime('%s', 'now') - strftime('%s', time_in)) / 60
+                ELSE (strftime('%s', time_out) - strftime('%s', time_in)) / 60
+            END
+        ) AS total_minutes
+        FROM sit_in_history
+        WHERE date(time_in) = ?
+    """, (today,))
+    result = cursor.fetchone()
+    total_minutes_today = result[0] if result[0] is not None else 0
+    total_hours_today = round(total_minutes_today / 60, 1)
+    
+    # Get course statistics for the chart
+    cursor.execute("""
         SELECT course, COUNT(*) as count 
         FROM users 
         WHERE is_admin = 0 
         GROUP BY course
+        ORDER BY count DESC
     """)
-    course_stats = [dict(row) for row in cur.fetchall()]
-
-    # Get year level statistics
-    cur.execute("""
+    course_stats = [dict(row) for row in cursor.fetchall()]
+    
+    # Get year level statistics for the chart
+    cursor.execute("""
         SELECT yearlevel, COUNT(*) as count 
         FROM users 
         WHERE is_admin = 0 
         GROUP BY yearlevel
+        ORDER BY 
+            CASE yearlevel
+                WHEN '1st Year' THEN 1
+                WHEN '2nd Year' THEN 2
+                WHEN '3rd Year' THEN 3
+                WHEN '4th Year' THEN 4
+                ELSE 5
+            END
     """)
-    year_level_stats = [dict(row) for row in cur.fetchall()]
-
-    con.close()
-
-    return render_template("admin_dashboard.html",
-                         total_users=total_users,
-                         recent_users=recent_users,
-                         currently_sitin=currently_sitin,
-                         total_sitin=total_sitin,
-                         course_stats=course_stats,
-                         year_level_stats=year_level_stats)
+    year_level_stats = [dict(row) for row in cursor.fetchall()]
+    
+    # Get announcements
+    cursor.execute("""
+        SELECT id, title, content, priority, created_by, created_at
+        FROM announcements
+        ORDER BY created_at DESC
+    """)
+    announcements = cursor.fetchall()
+    
+    conn.close()
+    
+    stats = {
+        'active_users': active_users,
+        'active_sessions': active_sessions,
+        'total_records': total_records,
+        'today_sessions': today_sessions,
+        'total_hours_today': total_hours_today
+    }
+    
+    return render_template(
+        "admin_dashboard.html", 
+        stats=stats, 
+        course_stats=course_stats,
+        year_level_stats=year_level_stats,
+        announcements=announcements
+    )
 
 @app.route("/admin/users")
 @admin_required
@@ -261,8 +314,39 @@ def admin_users():
     cur = con.cursor()
     cur.execute("SELECT * FROM users ORDER BY id DESC")
     users = cur.fetchall()
+    
+    # Get course distribution
+    cur.execute("""
+        SELECT course, COUNT(*) as count 
+        FROM users 
+        WHERE is_admin = 0
+        GROUP BY course
+        ORDER BY count DESC
+    """)
+    course_stats = [dict(zip([column[0] for column in cur.description], row)) for row in cur.fetchall()]
+    
+    # Get year level distribution
+    cur.execute("""
+        SELECT yearlevel, COUNT(*) as count 
+        FROM users 
+        WHERE is_admin = 0
+        GROUP BY yearlevel
+        ORDER BY yearlevel
+    """)
+    year_level_stats = [dict(zip([column[0] for column in cur.description], row)) for row in cur.fetchall()]
+    
+    # Get recent users
+    cur.execute("""
+        SELECT id, username, firstname, lastname, email, course, yearlevel
+        FROM users
+        WHERE is_admin = 0
+        ORDER BY id DESC
+        LIMIT 5
+    """)
+    recent_users = [dict(zip([column[0] for column in cur.description], row)) for row in cur.fetchall()]
+    
     con.close()
-    return render_template("admin_users.html", users=users)
+    return render_template("admin_users.html", users=users, course_stats=course_stats, year_level_stats=year_level_stats, recent_users=recent_users)
 
 @app.route("/admin/sessions")
 @admin_required
@@ -274,15 +358,41 @@ def admin_sessions():
     # Get session statistics
     cursor.execute("""
         SELECT 
-            COUNT(DISTINCT user_id) as active_users,
-            COUNT(*) as total_sessions,
-            SUM(CASE WHEN end_time IS NOT NULL THEN 1 ELSE 0 END) as completed_sessions,
-            AVG(CASE WHEN end_time IS NOT NULL THEN 
-                (julianday(end_time) - julianday(start_time)) * 24 * 60 
-                ELSE 0 END) as avg_duration
-        FROM sessions
+            COUNT(CASE WHEN time_out IS NULL THEN 1 END) as active_sessions,
+            COUNT(*) as total_records,
+            COUNT(CASE WHEN DATE(time_in) = DATE('now', 'localtime') THEN 1 END) as today_sessions,
+            SUM(CASE 
+                WHEN DATE(time_in) = DATE('now', 'localtime') THEN 
+                    CASE 
+                        WHEN time_out IS NOT NULL THEN 
+                            (julianday(time_out) - julianday(time_in)) * 24
+                        ELSE 
+                            (julianday('now', 'localtime') - julianday(time_in)) * 24
+                    END
+                ELSE 0 
+            END) as total_hours_today
+        FROM sit_in_history
     """)
-    stats = cursor.fetchone()
+    stats_data = cursor.fetchone()
+    
+    # Format the stats data into a dictionary
+    stats = {}
+    if stats_data:
+        stats = dict(zip(['active_sessions', 'total_records', 'today_sessions', 'total_hours_today'], stats_data))
+        
+        # Format the total hours
+        if stats['total_hours_today'] is not None:
+            stats['total_hours_today'] = f"{stats['total_hours_today']:.1f}"
+        else:
+            stats['total_hours_today'] = "0.0"
+    else:
+        # Default values if no data found
+        stats = {
+            'active_sessions': 0,
+            'total_records': 0,
+            'today_sessions': 0,
+            'total_hours_today': "0.0"
+        }
     
     # Render the template with statistics
     return render_template("admin_sessions.html", stats=stats)
@@ -346,8 +456,8 @@ def signup():
 
         # Insert user into the database using ID number as username
         cur.execute("""
-            INSERT INTO users (firstname, lastname, midname, email, username, password, course, yearlevel, profile_pic)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (firstname, lastname, midname, email, username, password, course, yearlevel, profile_pic, remaining_sessions)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 30)
         """, (firstname, lastname, midname, email, idno, hashed_password, course_name, year_name, "default.png"))
 
         con.commit()
@@ -864,44 +974,60 @@ def start_sitin():
         
         current_time = datetime.now()
 
-        # Get user_id from student_id
-        cur.execute("SELECT id FROM users WHERE username = ?", (student_id,))
+        # Get user_id and remaining_sessions from student_id
+        cur.execute("SELECT id, remaining_sessions, firstname, lastname FROM users WHERE username = ?", (student_id,))
         user_data = cur.fetchone()
         
         if not user_data:
             return jsonify({"success": False, "error": "Student not found"})
         
-        user_id = user_data[0]
+        user_id, remaining_sessions, firstname, lastname = user_data
 
-        # Check if user has an active session in either table
+        # Check if user has remaining sessions
+        if remaining_sessions <= 0:
+            return jsonify({"success": False, "error": "No remaining sessions available"})
+            
+        # Check if user already has an active sit-in session
         cur.execute("""
-            SELECT 
-                CASE 
-                    WHEN EXISTS (SELECT 1 FROM sessions WHERE user_id = ? AND status = 'active')
-                    OR EXISTS (SELECT 1 FROM sit_in_history WHERE user_id = ? AND status = 'active')
-                    THEN 1
-                    ELSE 0
-                END as has_active_session
-        """, (user_id, user_id))
-        has_active_session = cur.fetchone()[0]
+            SELECT id FROM sit_in_history 
+            WHERE user_id = ? AND status = 'active'
+        """, (user_id,))
         
-        if has_active_session:
-            return jsonify({"success": False, "error": "User already has an active session"})
+        if cur.fetchone():
+            return jsonify({"success": False, "error": "Student already has an active sit-in session"})
 
-        # Create sit-in history entry
+        # Start the sit-in session
         cur.execute("""
             INSERT INTO sit_in_history (user_id, date, time_in, status, purpose, lab_unit, allocated_duration)
             VALUES (?, ?, ?, 'active', ?, ?, ?)
         """, (user_id, current_time.date(), current_time, purpose, lab_unit, duration))
         
-        con.commit()
-        return jsonify({"success": True})
+        session_id = cur.lastrowid
         
+        # Deduct one session from remaining_sessions
+        cur.execute("""
+            UPDATE users 
+            SET remaining_sessions = remaining_sessions - 1
+            WHERE id = ?
+        """, (user_id,))
+        
+        # Get updated remaining sessions
+        new_remaining_sessions = remaining_sessions - 1
+        
+        con.commit()
+        con.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "Sit-in session started successfully",
+            "session_id": session_id,
+            "student_name": f"{firstname} {lastname}",
+            "remaining_sessions": new_remaining_sessions
+        })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-    finally:
-        if 'con' in locals() and con:
+        if 'con' in locals():
             con.close()
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/end_sitin/<int:session_id>", methods=["POST"])
 @admin_required
@@ -1163,7 +1289,7 @@ def get_user_details(user_id):
                 SUM(duration) as total_duration
             FROM sessions 
             WHERE user_id = ?
-        """, (user_id,))
+        """)
         stats = cur.fetchone()
         
         return jsonify({
@@ -1226,9 +1352,27 @@ def get_filtered_sessions():
     cursor = db.cursor()
     
     query = """
-        SELECT s.id, u.username as student_id, u.firstname, u.lastname,
-        s.time_in as start_time, s.time_out as end_time, s.purpose, s.lab_unit,
-        CAST((julianday(COALESCE(s.time_out, datetime('now'))) - julianday(s.time_in)) * 24 * 60 as INTEGER) as duration
+        SELECT 
+            s.id, 
+            u.username as student_id, 
+            u.firstname, 
+            u.lastname,
+            datetime(s.time_in, 'localtime') as start_time, 
+            datetime(s.time_out, 'localtime') as end_time, 
+            s.purpose, 
+            s.lab_unit,
+            s.duration,
+            u.remaining_sessions,
+            CASE 
+                WHEN s.time_out IS NULL THEN 'active' 
+                ELSE 'completed' 
+            END as status,
+            CASE 
+                WHEN s.time_out IS NULL THEN 
+                    CAST((julianday('now') - julianday(s.time_in)) * 24 * 60 AS INTEGER)
+                ELSE 
+                    s.duration 
+            END as duration
         FROM sit_in_history s
         JOIN users u ON s.user_id = u.id
     """
@@ -1239,11 +1383,18 @@ def get_filtered_sessions():
         query += " WHERE s.time_in >= datetime('now', '-7 days')"
     elif filter_type == 'month':
         query += " WHERE s.time_in >= datetime('now', '-30 days')"
+    elif filter_type == 'active':
+        query += " WHERE s.time_out IS NULL"
     
     query += " ORDER BY s.time_in DESC"
     
     cursor.execute(query)
-    sessions = cursor.fetchall()
+    sessions = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
+    
+    # Log fetched data for debugging
+    print(f"Fetched {len(sessions)} sit-in sessions from database")
+    if sessions:
+        print(f"First session data: {sessions[0]}")
     
     return jsonify({
         'success': True,
@@ -1253,43 +1404,227 @@ def get_filtered_sessions():
 @app.route("/api/export_sessions")
 @admin_required
 def export_sessions():
-    db = get_db()
-    cursor = db.cursor()
+    format_type = request.args.get('format', 'csv')  # Default to CSV if not specified
     
-    cursor.execute("""
-        SELECT s.id, u.username as student_id, u.firstname, u.lastname,
-        s.start_time, s.end_time,
-        CAST((julianday(COALESCE(s.end_time, datetime('now'))) - julianday(s.start_time)) * 24 * 60 as duration
-        FROM sessions s
-        JOIN users u ON s.user_id = u.id
-        ORDER BY s.start_time DESC
-    """)
-    
-    sessions = cursor.fetchall()
-    
-    # Create CSV content
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Session ID', 'Student ID', 'Name', 'Start Time', 'End Time', 'Duration (minutes)'])
-    
-    for session in sessions:
-        writer.writerow([
-            session['id'],
-            session['student_id'],
-            f"{session['firstname']} {session['lastname']}",
-            session['start_time'],
-            session['end_time'] or 'Ongoing',
-            session['duration']
-        ])
-    
-    # Create the response
-    response = Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=sessions_export.csv'}
-    )
-    
-    return response
+    try:
+        # Connect to the database 
+        conn = sqlite3.connect("users.db")
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # First, let's check which tables exist to determine the right query
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [table['name'] for table in cursor.fetchall()]
+        print(f"Available tables: {tables}")
+        
+        # Determine if we should use sit_in_history or sessions table
+        if 'sit_in_history' in tables:
+            # Query from sit_in_history table
+            cursor.execute("""
+                SELECT s.id, u.username as student_id, u.firstname, u.lastname,
+                s.time_in as start_time, s.time_out as end_time, 
+                s.purpose, s.lab_unit, u.remaining_sessions,
+                s.duration, s.status
+                FROM sit_in_history s
+                JOIN users u ON s.user_id = u.id
+                ORDER BY s.time_in DESC
+            """)
+        else:
+            # Fallback to sessions table
+            cursor.execute("""
+                SELECT s.id, u.username as student_id, u.firstname, u.lastname,
+                s.start_time, s.end_time, 
+                '' as purpose, '' as lab_unit, u.remaining_sessions,
+                (CASE WHEN s.duration IS NULL AND s.status = 'active' 
+                      THEN CAST((julianday(datetime('now')) - julianday(s.start_time)) * 24 * 60 as INTEGER)
+                      ELSE s.duration END) as duration,
+                s.status
+                FROM sessions s
+                JOIN users u ON s.user_id = u.id
+                ORDER BY s.start_time DESC
+            """)
+        
+        sessions = cursor.fetchall()
+        print(f"Found {len(sessions)} records for export")
+        
+        if format_type == 'csv':
+            # Create CSV content
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(['Session ID', 'Student ID', 'Name', 'Start Time', 'End Time', 'Duration (minutes)', 
+                            'Purpose', 'Lab Unit', 'Status', 'Remaining Sessions'])
+            
+            for session in sessions:
+                writer.writerow([
+                    session['id'],
+                    session['student_id'],
+                    f"{session['firstname']} {session['lastname']}",
+                    session['start_time'],
+                    session['end_time'] or 'Ongoing',
+                    session['duration'],
+                    session['purpose'] or '-',
+                    session['lab_unit'] or '-',
+                    session['status'],
+                    session['remaining_sessions']
+                ])
+            
+            # Create the response
+            response = Response(
+                output.getvalue(),
+                mimetype='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=sessions_export.csv'}
+            )
+            
+        elif format_type == 'excel':
+            # Create Excel workbook
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Sessions"
+            
+            # Add header row with formatting
+            headers = ['Session ID', 'Student ID', 'Name', 'Start Time', 'End Time', 'Duration (min)', 
+                      'Purpose', 'Lab Unit', 'Status', 'Remaining Sessions']
+            
+            for col_num, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_num, value=header)
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="1E3C72", end_color="1E3C72", fill_type="solid")
+                cell.font = Font(bold=True, color="FFFFFF")
+            
+            # Add data rows
+            for row_num, session in enumerate(sessions, 2):
+                ws.cell(row=row_num, column=1, value=session['id'])
+                ws.cell(row=row_num, column=2, value=session['student_id'])
+                ws.cell(row=row_num, column=3, value=f"{session['firstname']} {session['lastname']}")
+                ws.cell(row=row_num, column=4, value=session['start_time'])
+                ws.cell(row=row_num, column=5, value=session['end_time'] or 'Ongoing')
+                ws.cell(row=row_num, column=6, value=session['duration'])
+                ws.cell(row=row_num, column=7, value=session['purpose'] or '-')
+                ws.cell(row=row_num, column=8, value=session['lab_unit'] or '-')
+                ws.cell(row=row_num, column=9, value=session['status'])
+                ws.cell(row=row_num, column=10, value=session['remaining_sessions'])
+                
+                # Highlight active sessions
+                if session['status'] == 'active':
+                    for col in range(1, 11):
+                        ws.cell(row=row_num, column=col).fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+            
+            # Auto-adjust column widths
+            for col in ws.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = (max_length + 2)
+                ws.column_dimensions[column].width = adjusted_width
+            
+            # Save to a temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+            wb.save(temp_file.name)
+            temp_file.close()
+            
+            # Send file as response
+            response = send_file(
+                temp_file.name,
+                as_attachment=True,
+                download_name='sessions_export.xlsx',
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            
+        elif format_type == 'pdf':
+            # Create a PDF file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            
+            # Create the PDF document
+            doc = SimpleDocTemplate(
+                temp_file.name,
+                pagesize=letter
+            )
+            
+            # Container for the 'Flowable' objects
+            elements = []
+            
+            # Define styles
+            styles = getSampleStyleSheet()
+            title_style = styles['Heading1']
+            
+            # Add title
+            title = Paragraph("CCS Sit-In Sessions Report", title_style)
+            elements.append(title)
+            elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
+            elements.append(Paragraph(" ", styles['Normal']))  # Add some space
+            
+            # Prepare data for table
+            data = [['Session ID', 'Student ID', 'Name', 'Start Time', 'End Time', 'Duration', 'Status', 'Remaining']]
+            
+            for session in sessions:
+                duration_formatted = f"{session['duration']} min"
+                
+                data.append([
+                    session['id'],
+                    session['student_id'],
+                    f"{session['firstname']} {session['lastname']}",
+                    session['start_time'],
+                    session['end_time'] or 'Ongoing',
+                    duration_formatted,
+                    session['status'],
+                    session['remaining_sessions']
+                ])
+            
+            # Create the table
+            t = Table(data)
+            
+            # Add style
+            style = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.12, 0.24, 0.45)),  # Header background
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Header text color
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Center align all cells
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Bold font for header
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),  # Bottom padding for header
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),  # Table background
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Add grid to all cells
+            ])
+            
+            # Add alternating row colors
+            for i in range(1, len(data)):
+                if i % 2 == 0:
+                    bc = colors.Color(0.95, 0.95, 0.95)  # Light gray for even rows
+                    style.add('BACKGROUND', (0, i), (-1, i), bc)
+            
+            t.setStyle(style)
+            
+            # Add the table to the elements
+            elements.append(t)
+            
+            # Build the PDF
+            doc.build(elements)
+            temp_file.close()
+            
+            # Send file as response
+            response = send_file(
+                temp_file.name,
+                as_attachment=True,
+                download_name='sessions_export.pdf',
+                mimetype='application/pdf'
+            )
+        
+        else:
+            # Unsupported format
+            conn.close()
+            return jsonify({"error": "Unsupported export format"}), 400
+        
+        # Close database connection
+        conn.close()
+        return response
+        
+    except Exception as e:
+        # Log the error
+        print(f"Error generating report: {str(e)}")
+        return jsonify({"error": f"Failed to generate report: {str(e)}"}), 500
 
 @app.route("/admin/announcements")
 @admin_required
@@ -1396,13 +1731,26 @@ def admin_sitin():
                 END) as total_hours_today
             FROM sit_in_history
         """)
-        stats = dict(zip(['active_sessions', 'total_records', 'today_sessions', 'total_hours_today'], cursor.fetchone()))
+        stats_data = cursor.fetchone()
         
-        # Format the total hours
-        if stats['total_hours_today'] is not None:
-            stats['total_hours_today'] = f"{stats['total_hours_today']:.1f}"
+        # Format the stats data into a dictionary
+        stats = {}
+        if stats_data:
+            stats = dict(zip(['active_sessions', 'total_records', 'today_sessions', 'total_hours_today'], stats_data))
+            
+            # Format the total hours
+            if stats['total_hours_today'] is not None:
+                stats['total_hours_today'] = f"{stats['total_hours_today']:.1f}"
+            else:
+                stats['total_hours_today'] = "0.0"
         else:
-            stats['total_hours_today'] = "0.0"
+            # Default values if no data found
+            stats = {
+                'active_sessions': 0,
+                'total_records': 0,
+                'today_sessions': 0,
+                'total_hours_today': "0.0"
+            }
         
         # Get sit-in records
         cursor.execute("""
@@ -1659,8 +2007,8 @@ def add_user():
         
         # Insert new user
         cur.execute("""
-            INSERT INTO users (firstname, lastname, email, username, password, course, yearlevel, profile_pic)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (firstname, lastname, email, username, password, course, yearlevel, profile_pic, remaining_sessions)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 30)
         """, (data['firstname'], data['lastname'], data['email'], username, hashed_password, 
               data['course'], data['yearlevel'], "default.png"))
         
@@ -1695,9 +2043,9 @@ def get_student_info():
         con = sqlite3.connect("users.db")
         cur = con.cursor()
         
-        # Get student details
+        # Get student details including remaining_sessions
         cur.execute("""
-            SELECT id, firstname, lastname, course, yearlevel
+            SELECT id, firstname, lastname, course, yearlevel, remaining_sessions
             FROM users
             WHERE username = ? AND is_admin = 0
         """, (student_id,))
@@ -1729,7 +2077,8 @@ def get_student_info():
             "course": student[3],
             "yearlevel": student[4],
             "status": status,
-            "user_id": user_id
+            "user_id": user_id,
+            "remaining_sessions": student[5]
         }
         
         return jsonify(student_info)
@@ -1739,6 +2088,53 @@ def get_student_info():
     finally:
         if 'con' in locals() and con:
             con.close()
+
+@app.route("/api/update_remaining_sessions", methods=["POST"])
+@admin_required
+def update_remaining_sessions():
+    try:
+        data = request.json
+        student_id = data.get('student_id')
+        new_count = data.get('remaining_sessions')
+        
+        if not student_id or new_count is None:
+            return jsonify({"success": False, "error": "Student ID and remaining sessions count are required"})
+        
+        # Ensure new_count is a non-negative integer
+        try:
+            new_count = int(new_count)
+            if new_count < 0:
+                return jsonify({"success": False, "error": "Remaining sessions count cannot be negative"})
+        except ValueError:
+            return jsonify({"success": False, "error": "Remaining sessions count must be a valid number"})
+        
+        conn = sqlite3.connect("users.db")
+        cur = conn.cursor()
+        
+        # Check if student exists
+        cur.execute("SELECT id FROM users WHERE username = ?", (student_id,))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({"success": False, "error": "Student not found"})
+        
+        # Update remaining sessions
+        cur.execute("""
+            UPDATE users 
+            SET remaining_sessions = ?
+            WHERE username = ?
+        """, (new_count, student_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Updated remaining sessions to {new_count} for student {student_id}"
+        })
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({"success": False, "error": str(e)})
 
 if __name__ == "__main__":
     # Initialize the database before starting the app
