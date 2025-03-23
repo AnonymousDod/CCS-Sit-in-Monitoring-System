@@ -285,7 +285,7 @@
                                 sessionTime,
                                 status,
                                 session.remaining_sessions || '-',
-                                actions
+                                `${actions} <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteSession(${session.id})"><i class="bi bi-trash"></i></button>`
                             ]);
                         });
 
@@ -348,6 +348,37 @@
                 .catch(error => {
                     console.error('Error ending session:', error);
                     alert(`Error ending session: ${error.message || 'Network error'}`);
+                });
+            }
+        }
+        
+        function deleteSession(sessionId) {
+            if (confirm('Are you sure you want to delete this session? This action cannot be undone and will affect statistics.')) {
+                console.log(`Deleting session with ID: ${sessionId}`);
+                
+                fetch(`/api/delete_sitin/${sessionId}`, {
+                    method: 'POST'
+                })
+                .then(response => {
+                    console.log('Delete session response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Delete session response data:', data);
+                    
+                    if (data.success) {
+                        alert('Session deleted successfully');
+                        // Reload data to reflect the changes
+                        loadSessions();
+                        // Reload the page to update stats and charts
+                        window.location.reload();
+                    } else {
+                        alert(`Error deleting session: ${data.error || 'Unknown error'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting session:', error);
+                    alert(`Error deleting session: ${error.message || 'Network error'}`);
                 });
             }
         }

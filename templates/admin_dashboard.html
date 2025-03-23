@@ -75,6 +75,32 @@
             background-color: #bb2d3b;
             border-color: #b02a37;
         }
+        /* Announcement styles */
+        .announcement-item {
+            transition: all 0.2s ease;
+        }
+        .announcement-item:hover {
+            background-color: #f8f9fa;
+        }
+        .priority-urgent {
+            border-left: 4px solid #dc3545;
+        }
+        .priority-high {
+            border-left: 4px solid #ffc107;
+        }
+        .priority-normal {
+            border-left: 4px solid #28a745;
+        }
+        .text-truncate-2 {
+            display: -webkit-box;
+            display: box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
@@ -190,32 +216,27 @@
                 </div>
             </div>
 
-            <!-- Charts -->
+            <!-- Charts and Announcements -->
             <div class="row mb-4">
                 <div class="col-md-6">
-                    <div class="chart-container" style="height: 300px;">
-                        <canvas id="courseChart"></canvas>
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 250px;">
+                                <canvas id="courseChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="chart-container" style="height: 300px;">
-                        <canvas id="yearLevelChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Announcements Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Announcements</h5>
-                            <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#createAnnouncementModal">
+                    <div class="card h-100">
+                        <div class="card-header bg-white text-dark d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-megaphone me-2"></i>Announcements</h5>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createAnnouncementModal">
                                 <i class="bi bi-plus-circle me-2"></i>Create Announcement
                             </button>
                         </div>
-                        <div class="card-body">
-                            <div id="announcementsList">
+                        <div class="card-body p-0">
+                            <div id="announcementsList" style="max-height: 240px; overflow-y: auto;">
                                 <!-- Announcements will be loaded here dynamically -->
                             </div>
                         </div>
@@ -267,13 +288,12 @@
                             <label class="form-label">Purpose</label>
                             <select class="form-control" id="purpose" required>
                                 <option value="">Select a purpose</option>
-                                <option value="Academic Research">Academic Research</option>
-                                <option value="Programming Practice">Programming Practice</option>
-                                <option value="Project Work">Project Work</option>
-                                <option value="Assignment">Assignment</option>
-                                <option value="Lab Exercise">Lab Exercise</option>
-                                <option value="Group Study">Group Study</option>
-                                <option value="Online Class">Online Class</option>
+                                <option value="C#">C#</option>
+                                <option value="C">C</option>
+                                <option value="Java">Java</option>
+                                <option value="Asp.Net">Asp.Net</option>
+                                <option value="PHP">Php</option>
+                                <option value="Python">Phython</option>
                                 <option value="Other">Other</option>
                             </select>
                         </div>
@@ -519,29 +539,30 @@
         // Chart Initialization
         document.addEventListener('DOMContentLoaded', function() {
             // Prepare data from server as JSON strings
-            const courseStats = JSON.parse('{{ course_stats|tojson|safe }}');
+            const purposeStats = JSON.parse('{{ purpose_stats|tojson|safe }}');
             const yearLevelStats = JSON.parse('{{ year_level_stats|tojson|safe }}');
 
             // Extract labels and data
-            const courseLabels = courseStats.map(stat => stat.course);
-            const courseData = courseStats.map(stat => stat.count);
-            const yearLabels = yearLevelStats.map(stat => stat.yearlevel);
-            const yearData = yearLevelStats.map(stat => stat.count);
+            const purposeLabels = purposeStats.map(stat => stat.purpose);
+            const purposeData = purposeStats.map(stat => stat.count);
 
-            // Course Distribution Chart
+            // Purpose Distribution Chart
             const courseCtx = document.getElementById('courseChart').getContext('2d');
             const courseChart = new Chart(courseCtx, {
                 type: 'pie',
                 data: {
-                    labels: courseLabels,
+                    labels: purposeLabels,
                     datasets: [{
-                        data: courseData,
+                        data: purposeData,
                         backgroundColor: [
                             '#FF6384',
                             '#36A2EB',
                             '#FFCE56',
                             '#4BC0C0',
-                            '#9966FF'
+                            '#9966FF',
+                            '#FF9F40',
+                            '#8BC34A',
+                            '#607D8B'
                         ]
                     }]
                 },
@@ -551,7 +572,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Course Distribution'
+                            text: 'Sit-in Purpose Distribution'
                         },
                         legend: {
                             position: 'right'
@@ -560,38 +581,58 @@
                 }
             });
 
-            // Year Level Distribution Chart
-            const yearCtx = document.getElementById('yearLevelChart').getContext('2d');
-            const yearChart = new Chart(yearCtx, {
-                type: 'bar',
-                data: {
-                    labels: yearLabels,
-                    datasets: [{
-                        label: 'Number of Students',
-                        data: yearData,
-                        backgroundColor: '#1e3c72'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Year Level Distribution'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    }
-                }
-            });
+            // Make the chart globally accessible
+            window.purposeChart = courseChart;
+            
+            // Set up automatic refresh for the chart every 10 seconds
+            setInterval(refreshChart, 10000);
         });
+
+        // Function to refresh the chart with updated data
+        function refreshChart() {
+            // Add a subtle transition effect before updating
+            const chartContainer = document.querySelector('.chart-container');
+            if (chartContainer) {
+                chartContainer.style.opacity = '0.7';
+                chartContainer.style.transition = 'opacity 0.3s';
+            }
+            
+            fetch('/api/get_purpose_stats')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Extract labels and data
+                        const purposeLabels = data.purpose_stats.map(stat => stat.purpose);
+                        const purposeData = data.purpose_stats.map(stat => stat.count);
+                        
+                        // Update chart data
+                        window.purposeChart.data.labels = purposeLabels;
+                        window.purposeChart.data.datasets[0].data = purposeData;
+                        
+                        // Redraw the chart
+                        window.purposeChart.update();
+                        
+                        console.log('Chart data updated successfully');
+                    }
+                    
+                    // Reset opacity after update
+                    if (chartContainer) {
+                        chartContainer.style.opacity = '1';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing chart data:', error);
+                    // Reset opacity even on error
+                    if (chartContainer) {
+                        chartContainer.style.opacity = '1';
+                    }
+                });
+        }
 
         function loadAnnouncements() {
             fetch('/api/get_announcements')
@@ -613,24 +654,23 @@
                         }
 
                         data.announcements.forEach(announcement => {
+                            const priorityBadge = getPriorityBadge(announcement.priority);
                             const card = document.createElement('div');
-                            card.className = `card mb-3 border-left-${announcement.priority}`;
-                            card.style.borderLeft = `5px solid ${getPriorityColor(announcement.priority)}`;
+                            card.className = 'announcement-item';
                             card.innerHTML = `
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h5 class="mb-2">${announcement.title}</h5>
-                                            <p class="mb-2">${announcement.content}</p>
-                                            <small class="text-muted">
-                                                Posted by ${announcement.created_by} on ${new Date(announcement.created_at).toLocaleString()}
-                                            </small>
-                                        </div>
-                                        <div>
-                                            <button class="btn btn-danger btn-sm" onclick="deleteAnnouncement(${announcement.id})">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
+                                <div class="p-3 border-bottom ${getPriorityClass(announcement.priority)}">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0 text-dark fw-bold">${announcement.title}</h6>
+                                        ${priorityBadge}
+                                    </div>
+                                    <p class="mb-2 text-truncate-2">${announcement.content}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>${formatDate(announcement.created_at)}
+                                        </small>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteAnnouncement(${announcement.id})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </div>
                                 </div>
                             `;
@@ -640,13 +680,27 @@
                 });
         }
 
-        function getPriorityColor(priority) {
-            const colors = {
-                'urgent': '#dc3545',  // red
-                'high': '#ffc107',    // yellow
-                'normal': '#28a745'   // green
+        function formatDate(dateString) {
+            const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        }
+
+        function getPriorityClass(priority) {
+            const classes = {
+                'urgent': 'priority-urgent',
+                'high': 'priority-high',
+                'normal': 'priority-normal'
             };
-            return colors[priority] || colors.normal;
+            return classes[priority] || classes.normal;
+        }
+
+        function getPriorityBadge(priority) {
+            const badges = {
+                'urgent': '<span class="badge rounded-pill bg-danger">Urgent</span>',
+                'high': '<span class="badge rounded-pill bg-warning text-dark">High</span>',
+                'normal': '<span class="badge rounded-pill bg-success">Normal</span>'
+            };
+            return badges[priority] || badges.normal;
         }
 
         function createAnnouncement() {

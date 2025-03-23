@@ -253,17 +253,21 @@ def admin_dashboard():
     total_minutes_today = result[0] if result[0] is not None else 0
     total_hours_today = round(total_minutes_today / 60, 1)
     
-    # Get course statistics for the chart
+    # Get sit-in purpose distribution for the chart
     cursor.execute("""
-        SELECT course, COUNT(*) as count 
-        FROM users 
-        WHERE is_admin = 0 
-        GROUP BY course
+        SELECT 
+            CASE 
+                WHEN purpose IS NULL OR purpose = '' THEN 'Other'
+                ELSE purpose 
+            END as purpose, 
+            COUNT(*) as count 
+        FROM sit_in_history 
+        GROUP BY purpose
         ORDER BY count DESC
     """)
-    course_stats = [dict(row) for row in cursor.fetchall()]
+    purpose_stats = [dict(row) for row in cursor.fetchall()]
     
-    # Get year level statistics for the chart
+    # Still collect year level statistics for potential future use
     cursor.execute("""
         SELECT yearlevel, COUNT(*) as count 
         FROM users 
@@ -301,7 +305,7 @@ def admin_dashboard():
     return render_template(
         "admin_dashboard.html", 
         stats=stats, 
-        course_stats=course_stats,
+        purpose_stats=purpose_stats,
         year_level_stats=year_level_stats,
         announcements=announcements
     )
@@ -544,7 +548,8 @@ def login_page():
     return render_template("login.html")
 
 @app.route("/home")
-def home():
+@app.route("/home/<show_section>")
+def home(show_section=None):
     if "user" not in session:
         flash("Please log in first.", "error")
         return redirect(url_for("login_page"))
@@ -571,9 +576,63 @@ def home():
         # Convert created_at string to datetime object
         announcement['created_at'] = datetime.strptime(announcement['created_at'], '%Y-%m-%d %H:%M:%S')
         announcements.append(announcement)
+    
+    # Get user's history data (always load this for improved performance)
+    user_id = session["user"]["id"]
+    
+    # Get user's session history
+    cur.execute("""
+            SELECT id, date, time_in, time_out, status, duration, allocated_duration, purpose, lab_unit 
+            FROM sit_in_history
+            WHERE user_id = ?
+            ORDER BY time_in DESC
+    """, (user_id,))
+    history = cur.fetchall()
+    
+    # Get statistics
+    cur.execute("""
+        SELECT 
+            COUNT(*) as total_sessions,
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_sessions,
+            SUM(CASE WHEN duration IS NOT NULL THEN duration ELSE 0 END) as total_duration
+        FROM sit_in_history
+        WHERE user_id = ?
+    """, (user_id,))
+    stats = cur.fetchone()
+    
     con.close()
     
-    return render_template("homepage.html", user=session["user"], announcements=announcements)
+    # Format history data
+    formatted_history = []
+    for entry in history:
+        formatted_entry = {
+            'id': entry[0],
+            'date': entry[1],
+            'time_in': entry[2],
+            'time_out': entry[3] if entry[3] else None,
+            'status': entry[4],
+            'duration': entry[5],
+            'allocated_duration': entry[6],
+            'purpose': entry[7],
+            'lab_unit': entry[8]
+        }
+        formatted_history.append(formatted_entry)
+    
+    # Format statistics
+    statistics = {
+        'total_sessions': stats[0],
+        'completed_sessions': stats[1],
+        'total_duration': stats[2]
+    }
+    
+    return render_template(
+        "homepage.html", 
+        user=session["user"], 
+        announcements=announcements,
+        history=formatted_history,
+        stats=statistics,
+        show_section=show_section
+    )
 
 # Route for updating profile details
 @app.route("/update_profile", methods=["POST"])
@@ -736,79 +795,8 @@ def sit_in_history():
     if "user" not in session:
         return redirect(url_for('login_page'))
     
-    user_id = session["user"]["id"]
-    
-    try:
-        con = sqlite3.connect("users.db")
-        cur = con.cursor()
-        
-        # First, check if sit_in_history table exists, if not create it
-        cur.execute('''
-        CREATE TABLE IF NOT EXISTS sit_in_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            date DATE NOT NULL,
-            time_in TIMESTAMP NOT NULL,
-            time_out TIMESTAMP,
-            status TEXT DEFAULT 'active',
-            purpose TEXT,
-            lab_unit TEXT,
-            duration INTEGER,
-            allocated_duration INTEGER,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-        ''')
-        con.commit()
-        
-        # Get user's session history
-        cur.execute("""
-                SELECT id, date, time_in, time_out, status, duration, allocated_duration, purpose, lab_unit 
-                FROM sit_in_history
-                WHERE user_id = ?
-                ORDER BY time_in DESC
-        """, (user_id,))
-        history = cur.fetchall()
-        
-        # Get statistics
-        cur.execute("""
-            SELECT 
-                COUNT(*) as total_sessions,
-                COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_sessions,
-                SUM(CASE WHEN duration IS NOT NULL THEN duration ELSE 0 END) as total_duration
-                FROM sit_in_history
-            WHERE user_id = ?
-        """, (user_id,))
-        stats = cur.fetchone()
-        
-        con.close()
-        
-        # Format history data
-        formatted_history = []
-        for entry in history:
-            formatted_entry = {
-                'id': entry[0],
-                'date': entry[1],
-                'time_in': entry[2],
-                'time_out': entry[3] if entry[3] else None,
-                'status': entry[4],
-                'duration': entry[5],
-                'allocated_duration': entry[6],
-                'purpose': entry[7],
-                'lab_unit': entry[8]
-            }
-            formatted_history.append(formatted_entry)
-        
-        # Format statistics
-        statistics = {
-            'total_sessions': stats[0],
-            'completed_sessions': stats[1],
-            'total_duration': stats[2]
-        }
-        
-        return render_template('sit_in_history.html', history=formatted_history, stats=statistics)
-    except Exception as e:
-        flash('Error loading history: ' + str(e), 'error')
-        return redirect(url_for('home'))
+    # Redirect to the homepage with the history section shown
+    return redirect(url_for('home', show_section='history'))
 
 @app.route('/register_user', methods=['GET', 'POST'])
 def register_user():
@@ -1053,6 +1041,36 @@ def end_sitin(session_id):
         return jsonify({"success": False, "error": str(e)})
     finally:
         con.close()
+
+@app.route("/api/delete_sitin/<int:session_id>", methods=["POST"])
+@admin_required
+def delete_sitin(session_id):
+    try:
+        # Get session purpose before deletion (for logging)
+        con = sqlite3.connect("users.db")
+        cur = con.cursor()
+        
+        # Get the purpose of the session to be deleted
+        cur.execute("SELECT purpose FROM sit_in_history WHERE id = ?", (session_id,))
+        session_data = cur.fetchone()
+        
+        if not session_data:
+            return jsonify({"success": False, "error": "Session not found"}), 404
+            
+        # Delete the session
+        cur.execute("DELETE FROM sit_in_history WHERE id = ?", (session_id,))
+        
+        if cur.rowcount == 0:
+            return jsonify({"success": False, "error": "No session was deleted"}), 404
+            
+        con.commit()
+        return jsonify({"success": True, "message": "Session deleted successfully"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+    finally:
+        if 'con' in locals():
+            con.close()
 
 @app.route('/make_reservation', methods=['POST'])
 def make_reservation():
@@ -2135,6 +2153,42 @@ def update_remaining_sessions():
         if 'conn' in locals():
             conn.close()
         return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/get_purpose_stats')
+@admin_required
+def get_purpose_stats():
+    try:
+        conn = sqlite3.connect('users.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get sit-in purpose distribution for the chart
+        cursor.execute("""
+            SELECT 
+                CASE 
+                    WHEN purpose IS NULL OR purpose = '' THEN 'Other'
+                    ELSE purpose 
+                END as purpose, 
+                COUNT(*) as count 
+            FROM sit_in_history 
+            GROUP BY purpose
+            ORDER BY count DESC
+        """)
+        purpose_stats = [dict(row) for row in cursor.fetchall()]
+        
+        return jsonify({
+            "success": True, 
+            "purpose_stats": purpose_stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False, 
+            "error": str(e)
+        })
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 if __name__ == "__main__":
     # Initialize the database before starting the app

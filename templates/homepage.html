@@ -228,7 +228,17 @@
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Purpose</label>
-                                    <textarea class="form-control" id="reservationPurpose" rows="3" required></textarea>
+                                    <select class="form-control" id="reservationPurpose" required>
+                                        <option value="">Select a purpose</option>
+                                        <option value="">Select a purpose</option>
+                                        <option value="C#">C#</option>
+                                        <option value="C">C</option>
+                                        <option value="Java">Java</option>
+                                        <option value="Asp.Net">Asp.Net</option>
+                                        <option value="PHP">Php</option>
+                                        <option value="Python">Phython</option>
+                                        <option value="Other">Other</option>
+                                    </select>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Laboratory Unit</label>
@@ -369,38 +379,82 @@
                         <!-- History Section -->
                         <div id="historySection" class="content-section" style="display: none;">
                             <h3 class="mb-4"><i class="bi bi-clock-history me-2"></i>Session History</h3>
-                            <div class="table-responsive">
-                                <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Time In</th>
-                                            <th>Time Out</th>
-                                            <th>Duration</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for session in recent_sessions %}
-                                        <tr>
-                                            <td>{{ session.date }}</td>
-                                            <td>{{ session.start_time }}</td>
-                                            <td>{{ session.end_time if session.end_time else '-' }}</td>
-                                            <td>{{ session.duration }} minutes</td>
-                                            <td>
-                                                <span class="badge {% if session.end_time %}bg-success{% else %}bg-primary{% endif %}">
-                                                    {% if session.end_time %}Completed{% else %}Active{% endif %}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                            
+                            <!-- Statistics Cards -->
+                            {% if stats %}
+                            <div class="row mb-4">
+                                <div class="col-md-4">
+                                    <div class="stats-card text-center">
+                                        <i class="bi bi-clock-history stats-icon"></i>
+                                        <div class="stats-value">{{ stats.total_sessions }}</div>
+                                        <div class="stats-label">Total Records</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stats-card text-center">
+                                        <i class="bi bi-hourglass-split stats-icon"></i>
+                                        <div class="stats-value">{{ stats.total_duration|default(0)|int // 3600 }}h {{ (stats.total_duration|default(0)|int % 3600) // 60 }}m</div>
+                                        <div class="stats-label">Total Hours</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stats-card text-center">
+                                        <i class="bi bi-check-circle stats-icon"></i>
+                                        <div class="stats-value">{{ stats.completed_sessions }}</div>
+                                        <div class="stats-label">Completed Records</div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-end mt-3">
-                                <a href="{{ url_for('sit_in_history') }}" class="btn btn-primary">
-                                    <i class="bi bi-clock-history me-2"></i>View Full History
-                                </a>
+                            {% endif %}
+                            
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">Sit-in Records</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if history %}
+                                    <div class="table-responsive">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Time In</th>
+                                                    <th>Time Out</th>
+                                                    <th>Duration</th>
+                                                    <th>Allocated Time</th>
+                                                    <th>Status</th>
+                                                    <th>Purpose</th>
+                                                    <th>Lab Unit</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for entry in history %}
+                                                <tr>
+                                                    <td>{{ entry.date }}</td>
+                                                    <td>{{ entry.time_in }}</td>
+                                                    <td>{{ entry.time_out if entry.time_out else '-' }}</td>
+                                                    <td>{{ entry.duration|default(0)|int // 3600 }}h {{ (entry.duration|default(0)|int % 3600) // 60 }}m</td>
+                                                    <td>{{ entry.allocated_duration|default(0)|int // 60 }}m</td>
+                                                    <td>
+                                                        {% if entry.status == 'active' %}
+                                                        <span class="badge bg-primary">Active</span>
+                                                        {% else %}
+                                                        <span class="badge bg-success">Completed</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ entry.purpose }}</td>
+                                                    <td>{{ entry.lab_unit }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-4">
+                                        <p class="mb-0">No session history found</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
 
@@ -624,6 +678,26 @@
                 dynamicContent.scrollIntoView({ behavior: 'smooth' });
             }
         }
+
+        // Set minimum date to today
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('reservationDate').min = today;
+            
+            // Check if a specific section should be shown
+            const showSection = "{{ show_section|default('') }}";
+            if (showSection === "history") {
+                // Auto-select and show the history section
+                toggleSection('history');
+                
+                // If coming from history link, scroll to the history section
+                document.getElementById('historySection').scrollIntoView({ behavior: 'smooth' });
+            } else if (showSection === "feedback") {
+                toggleSection('feedback');
+            } else if (showSection === "reserve") {
+                $('#reservationModal').modal('show');
+            }
+        });
     </script>
 
     <!-- Reservation Modal -->
@@ -646,7 +720,17 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Purpose</label>
-                            <textarea class="form-control" id="reservationPurpose" rows="3" required></textarea>
+                            <select class="form-control" id="reservationPurpose" required>
+                                <option value="">Select a purpose</option>
+                                <option value="Academic Research">Academic Research</option>
+                                <option value="Programming Practice">Programming Practice</option>
+                                <option value="Project Work">Project Work</option>
+                                <option value="Assignment">Assignment</option>
+                                <option value="Lab Exercise">Lab Exercise</option>
+                                <option value="Group Study">Group Study</option>
+                                <option value="Online Class">Online Class</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Laboratory Unit</label>
@@ -860,12 +944,6 @@
             alert('An error occurred while submitting your reservation');
         });
     }
-
-    // Set minimum date to today
-    document.addEventListener('DOMContentLoaded', function() {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('reservationDate').min = today;
-    });
 
     function submitFeedback() {
         const rating = document.querySelector('input[name="rating"]:checked')?.value;
