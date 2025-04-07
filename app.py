@@ -2193,4 +2193,4 @@ def get_purpose_stats():
 if __name__ == "__main__":
     # Initialize the database before starting the app
     init_db()
-    app.run(debug=True, host = "172.19.131.153", port="5000")
+    app.run(debug=True, port="5000")
