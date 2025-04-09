@@ -52,7 +52,8 @@ def init_db():
                 yearlevel TEXT NOT NULL,
                 is_admin INTEGER DEFAULT 0,
                 profile_pic TEXT,
-                remaining_sessions INTEGER DEFAULT 0
+                remaining_sessions INTEGER DEFAULT 0,
+                points INTEGER DEFAULT 0
             )
         ''')
         
@@ -126,6 +127,27 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+
+        # Create lab_resources table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS lab_resources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                status TEXT DEFAULT 'enabled',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # Insert default lab resources if they don't exist
+        c.execute("SELECT COUNT(*) FROM lab_resources")
+        if c.fetchone()[0] == 0:
+            default_resources = [
+                ('Lab Unit 1',),
+                ('Lab Unit 2',),
+                ('Lab Unit 3',),
+                ('Lab Unit 4',)
+            ]
+            c.executemany("INSERT INTO lab_resources (name) VALUES (?)", default_resources)
         
         # Check if admin user exists, if not create it
         c.execute("SELECT * FROM users WHERE username = ?", (ADMIN_USERNAME,))
@@ -145,6 +167,15 @@ def init_db():
             c.execute("ALTER TABLE users ADD COLUMN remaining_sessions INTEGER DEFAULT 0")
             conn.commit()
             print("Added remaining_sessions column to users table")
+        except sqlite3.OperationalError:
+            # Column already exists, ignore the error
+            pass
+            
+        # Add points column to users table
+        try:
+            c.execute("ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0")
+            conn.commit()
+            print("Added points column to users table")
         except sqlite3.OperationalError:
             # Column already exists, ignore the error
             pass
@@ -2026,7 +2057,7 @@ def add_user():
         # Insert new user
         cur.execute("""
             INSERT INTO users (firstname, lastname, email, username, password, course, yearlevel, profile_pic, remaining_sessions)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 30)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 30)
         """, (data['firstname'], data['lastname'], data['email'], username, hashed_password, 
               data['course'], data['yearlevel'], "default.png"))
         
@@ -2189,6 +2220,91 @@ def get_purpose_stats():
     finally:
         if 'conn' in locals():
             conn.close()
+
+# Route to manage lab resources
+@app.route("/admin/lab_resources")
+@admin_required
+def admin_lab_resources():
+    conn = sqlite3.connect('users.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM lab_resources")
+    resources = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return render_template("admin_lab_resources.html", resources=resources)
+
+@app.route("/api/toggle_resource/<int:resource_id>", methods=["POST"])
+@admin_required
+def toggle_resource(resource_id):
+    try:
+        conn = sqlite3.connect("users.db")
+        cur = conn.cursor()
+        cur.execute("SELECT status FROM lab_resources WHERE id = ?", (resource_id,))
+        resource = cur.fetchone()
+        if not resource:
+            return jsonify({"success": False, "error": "Resource not found"})
+        new_status = "disabled" if resource[0] == "enabled" else "enabled"
+        cur.execute("UPDATE lab_resources SET status = ? WHERE id = ?", (new_status, resource_id))
+        conn.commit()
+        return jsonify({"success": True, "new_status": new_status})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+    finally:
+        conn.close()
+
+# Route to manage lab usage points
+@app.route("/admin/lab_points")
+@admin_required
+def admin_lab_points():
+    conn = sqlite3.connect('users.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT id, username, points FROM users WHERE is_admin = 0")
+    users = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return render_template("admin_lab_points.html", users=users)
+
+@app.route("/api/update_points/<int:user_id>", methods=["POST"])
+@admin_required
+def update_points(user_id):
+    data = request.json
+    points = data.get('points')
+    try:
+        conn = sqlite3.connect("users.db")
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET points = ? WHERE id = ?", (points, user_id))
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+    finally:
+        conn.close()
+
+# Route to display leaderboard
+@app.route("/admin/leaderboard")
+@admin_required
+def admin_leaderboard():
+    conn = sqlite3.connect('users.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT username, points FROM users WHERE is_admin = 0 ORDER BY points DESC LIMIT 10")
+    leaderboard = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return render_template("admin_leaderboard.html", leaderboard=leaderboard)
+
+# Route to generate reports
+@app.route("/admin/reports")
+@admin_required
+def admin_reports():
+    return render_template("admin_reports.html")
+
+@app.route("/api/generate_report", methods=["POST"])
+@admin_required
+def generate_report():
+    data = request.json
+    report_type = data.get('report_type')
+    # Implement report generation logic here
+    return jsonify({"success": True, "message": "Report generated successfully"})
 
 if __name__ == "__main__":
     # Initialize the database before starting the app

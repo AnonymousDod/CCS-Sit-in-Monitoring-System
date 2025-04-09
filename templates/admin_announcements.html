@@ -109,18 +109,23 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_users') }}">
-                            <i class="bi bi-people"></i>Users
+                        <a class="nav-link" href="{{ url_for('admin_lab_resources') }}">
+                            <i class="bi bi-tools"></i>Lab Resources
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_sessions') }}">
-                            <i class="bi bi-clock"></i>Sessions
+                        <a class="nav-link" href="{{ url_for('admin_lab_points') }}">
+                            <i class="bi bi-coin"></i>Lab Points
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="{{ url_for('admin_announcements') }}">
-                            <i class="bi bi-megaphone"></i>Announcements
+                        <a class="nav-link" href="{{ url_for('admin_leaderboard') }}">
+                            <i class="bi bi-trophy"></i>Leaderboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_reports') }}">
+                            <i class="bi bi-file-earmark-text"></i>Reports
                         </a>
                     </li>
                     <li class="nav-item">
@@ -131,6 +136,21 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin_feedback') }}">
                             <i class="bi bi-chat-dots"></i>Feedback
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('admin_announcements') }}">
+                            <i class="bi bi-megaphone"></i>Announcements
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_users') }}">
+                            <i class="bi bi-people"></i>Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_sessions') }}">
+                            <i class="bi bi-clock"></i>Sessions
                         </a>
                     </li>
                 </ul>
