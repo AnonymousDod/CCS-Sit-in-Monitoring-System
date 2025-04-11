@@ -158,8 +158,16 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link active" href="{{ url_for('home') }}"><i class="bi bi-house-door me-1"></i>Home</a></li>
-                    <li class="nav-item"><a class="nav-link btn btn-danger ms-2" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-1"></i>Logout</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('home') }}">
+                            <i class="bi bi-house-door me-1"></i>Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right me-1"></i>Logout
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -192,6 +200,13 @@
                                 <i class="bi bi-list-check"></i>
                                 <h5>Laboratory Rules</h5>
                                 <p class="text-muted">View lab rules and regulations</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="action-card text-decoration-none text-dark" onclick="toggleSection('labResources')" style="cursor: pointer;">
+                                <i class="bi bi-tools"></i>
+                                <h5>Lab Resources</h5>
+                                <p class="text-muted">View available resources</p>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -373,6 +388,39 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Lab Resources Section -->
+                        <div id="labResourcesSection" class="content-section" style="display: none;">
+                            <h3 class="mb-4"><i class="bi bi-tools me-2"></i>Lab Resources</h3>
+                            <div class="row">
+                                {% if resources %}
+                                    {% for resource in resources %}
+                                    <div class="col-md-6 col-lg-4 mb-4">
+                                        <div class="resource-card position-relative">
+                                            <div class="resource-icon">
+                                                <i class="bi bi-book"></i>
+                                            </div>
+                                            <h3 class="resource-title">{{ resource.name }}</h3>
+                                            <p class="resource-description">{{ resource.description }}</p>
+                                            {% if resource.link %}
+                                            <a href="{{ resource.link }}" class="resource-link" target="_blank">
+                                                <i class="bi bi-box-arrow-up-right"></i>Access Resource
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="col-12">
+                                        <div class="text-center py-5">
+                                            <i class="bi bi-info-circle text-muted" style="font-size: 3rem;"></i>
+                                            <h4 class="mt-3 text-muted">No resources available at the moment</h4>
+                                            <p class="text-muted">Please check back later for updates.</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -571,7 +619,7 @@
                             <h5 class="mb-2">{{ announcement.title }}</h5>
                             <p class="mb-2">{{ announcement.content }}</p>
                             <small class="text-muted">
-                                Posted by {{ announcement.created_by }} on {{ announcement.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                Posted by {{ announcement.created_by }} on {{ announcement.created_at }}
                             </small>
                         </div>
                         {% endfor %}
@@ -650,9 +698,11 @@
                 dynamicContent.style.display = 'none';
                 actionCard.querySelector('h5').textContent = sectionName === 'rules' ? 'Laboratory Rules' : 
                                                           sectionName === 'reservation' ? 'Make Reservation' :
+                                                          sectionName === 'labResources' ? 'Lab Resources' :
                                                           sectionName === 'history' ? 'History' : 'Give Feedback';
                 actionCard.querySelector('p').textContent = sectionName === 'rules' ? 'View lab rules and regulations' :
                                                          sectionName === 'reservation' ? 'Reserve a sit-in session' :
+                                                         sectionName === 'labResources' ? 'View available resources' :
                                                          sectionName === 'history' ? 'View your past activities' : 'Share your experience with us';
             } else {
                 // Hide all sections first
@@ -669,9 +719,11 @@
                 // Update the action card text
                 actionCard.querySelector('h5').textContent = sectionName === 'rules' ? 'Hide Rules' :
                                                           sectionName === 'reservation' ? 'Hide Reservation' :
+                                                          sectionName === 'labResources' ? 'Hide Resources' :
                                                           sectionName === 'history' ? 'Hide History' : 'Hide Feedback';
                 actionCard.querySelector('p').textContent = sectionName === 'rules' ? 'Click to hide lab rules' :
                                                          sectionName === 'reservation' ? 'Click to hide reservation form' :
+                                                         sectionName === 'labResources' ? 'Click to hide resources' :
                                                          sectionName === 'history' ? 'Click to hide history' : 'Click to hide feedback form';
                 
                 // Scroll to the content
@@ -698,6 +750,157 @@
                 $('#reservationModal').modal('show');
             }
         });
+
+        function submitReservation() {
+            const date = document.getElementById('reservationDate').value;
+            const time = document.getElementById('reservationTime').value;
+            const purpose = document.getElementById('reservationPurpose').value;
+            const lab = document.getElementById('reservationLab').value;
+
+            if (!date || !time || !purpose || !lab) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            fetch('/make_reservation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    date: date,
+                    time: time,
+                    purpose: purpose,
+                    lab_unit: lab
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Reservation submitted successfully!');
+                    $('#reservationModal').modal('hide');
+                    document.getElementById('reservationForm').reset();
+                } else {
+                    alert(data.error || 'Failed to submit reservation');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while submitting your reservation');
+            });
+        }
+
+        function submitFeedback() {
+            const rating = document.querySelector('input[name="rating"]:checked')?.value;
+            const comments = document.getElementById('feedbackComments').value;
+            const messageDiv = document.getElementById('feedbackMessage');
+            
+            if (!rating || !comments) {
+                messageDiv.textContent = 'Please fill in all fields';
+                messageDiv.classList.remove('d-none', 'alert-success');
+                messageDiv.classList.add('alert-danger');
+                return;
+            }
+            
+            fetch('/submit_feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rating: parseInt(rating),
+                    comments: comments
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageDiv.textContent = 'Thank you for your feedback!';
+                    messageDiv.classList.remove('d-none', 'alert-danger');
+                    messageDiv.classList.add('alert-success');
+                    document.getElementById('feedbackForm').reset();
+                    
+                    // Close modal after 2 seconds
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
+                        modal.hide();
+                        messageDiv.classList.add('d-none');
+                    }, 2000);
+                } else {
+                    messageDiv.textContent = data.error || 'Error submitting feedback';
+                    messageDiv.classList.remove('d-none', 'alert-success');
+                    messageDiv.classList.add('alert-danger');
+                }
+            })
+            .catch(error => {
+                messageDiv.textContent = 'Error submitting feedback';
+                messageDiv.classList.remove('d-none', 'alert-success');
+                messageDiv.classList.add('alert-danger');
+            });
+        }
+
+        function startSession() {
+            fetch('/start_session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Reload page to show new session
+                } else {
+                    alert(data.error || 'Failed to start session');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while starting the session');
+            });
+        }
+
+        function endSession(sessionId) {
+            if (!confirm('Are you sure you want to end this session?')) {
+                return;
+            }
+
+            fetch('/end_session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ session_id: sessionId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Reload page to update session status
+                } else {
+                    alert(data.error || 'Failed to end session');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while ending the session');
+            });
+        }
+
+        // Update session timers every minute
+        function updateTimers() {
+            document.querySelectorAll('.timer').forEach(timer => {
+                const startTime = new Date(timer.dataset.start);
+                const now = new Date();
+                const duration = Math.floor((now - startTime) / 1000 / 60); // Duration in minutes
+                const hours = Math.floor(duration / 60);
+                const minutes = duration % 60;
+                timer.textContent = `${hours}h ${minutes}m`;
+            });
+        }
+
+        // Start timer updates when page loads
+        setInterval(updateTimers, 60000); // Update every minute
+        updateTimers(); // Initial update
     </script>
 
     <!-- Reservation Modal -->
@@ -903,159 +1106,5 @@
             </div>
         </div>
     </div>
-
-    <!-- Add this before closing body tag -->
-    <script>
-    function submitReservation() {
-        const date = document.getElementById('reservationDate').value;
-        const time = document.getElementById('reservationTime').value;
-        const purpose = document.getElementById('reservationPurpose').value;
-        const lab = document.getElementById('reservationLab').value;
-
-        if (!date || !time || !purpose || !lab) {
-            alert('Please fill in all fields');
-            return;
-        }
-
-        fetch('/make_reservation', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                date: date,
-                time: time,
-                purpose: purpose,
-                lab_unit: lab
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Reservation submitted successfully!');
-                $('#reservationModal').modal('hide');
-                document.getElementById('reservationForm').reset();
-            } else {
-                alert(data.error || 'Failed to submit reservation');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while submitting your reservation');
-        });
-    }
-
-    function submitFeedback() {
-        const rating = document.querySelector('input[name="rating"]:checked')?.value;
-        const comments = document.getElementById('feedbackComments').value;
-        const messageDiv = document.getElementById('feedbackMessage');
-        
-        if (!rating || !comments) {
-            messageDiv.textContent = 'Please fill in all fields';
-            messageDiv.classList.remove('d-none', 'alert-success');
-            messageDiv.classList.add('alert-danger');
-            return;
-        }
-        
-        fetch('/submit_feedback', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                rating: parseInt(rating),
-                comments: comments
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                messageDiv.textContent = 'Thank you for your feedback!';
-                messageDiv.classList.remove('d-none', 'alert-danger');
-                messageDiv.classList.add('alert-success');
-                document.getElementById('feedbackForm').reset();
-                
-                // Close modal after 2 seconds
-                setTimeout(() => {
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
-                    modal.hide();
-                    messageDiv.classList.add('d-none');
-                }, 2000);
-            } else {
-                messageDiv.textContent = data.error || 'Error submitting feedback';
-                messageDiv.classList.remove('d-none', 'alert-success');
-                messageDiv.classList.add('alert-danger');
-            }
-        })
-        .catch(error => {
-            messageDiv.textContent = 'Error submitting feedback';
-            messageDiv.classList.remove('d-none', 'alert-success');
-            messageDiv.classList.add('alert-danger');
-        });
-    }
-
-    function startSession() {
-        fetch('/start_session', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload(); // Reload page to show new session
-            } else {
-                alert(data.error || 'Failed to start session');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while starting the session');
-        });
-    }
-
-    function endSession(sessionId) {
-        if (!confirm('Are you sure you want to end this session?')) {
-            return;
-        }
-
-        fetch('/end_session', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ session_id: sessionId })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload(); // Reload page to update session status
-            } else {
-                alert(data.error || 'Failed to end session');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while ending the session');
-        });
-    }
-
-    // Update session timers every minute
-    function updateTimers() {
-        document.querySelectorAll('.timer').forEach(timer => {
-            const startTime = new Date(timer.dataset.start);
-            const now = new Date();
-            const duration = Math.floor((now - startTime) / 1000 / 60); // Duration in minutes
-            const hours = Math.floor(duration / 60);
-            const minutes = duration % 60;
-            timer.textContent = `${hours}h ${minutes}m`;
-        });
-    }
-
-    // Start timer updates when page loads
-    setInterval(updateTimers, 60000); // Update every minute
-    updateTimers(); // Initial update
-    </script>
 </body>
 </html>

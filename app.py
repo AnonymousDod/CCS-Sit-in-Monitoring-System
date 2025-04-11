@@ -39,143 +39,52 @@ def init_db():
         c = conn.cursor()
         
         # Create users table
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                firstname TEXT NOT NULL,
-                midname TEXT,
-                lastname TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                course TEXT NOT NULL,
-                yearlevel TEXT NOT NULL,
-                is_admin INTEGER DEFAULT 0,
-                profile_pic TEXT,
-                remaining_sessions INTEGER DEFAULT 0,
-                points INTEGER DEFAULT 0
-            )
-        ''')
+        c.execute('''CREATE TABLE IF NOT EXISTS users
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    firstname TEXT,
+                    lastname TEXT,
+                    email TEXT,
+                    course TEXT,
+                    yearlevel TEXT,
+                    profile_pic TEXT,
+                    is_admin INTEGER DEFAULT 0)''')
         
-        # Create sessions table
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS sessions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                end_time TIMESTAMP,
-                status TEXT DEFAULT 'active',
-                purpose TEXT,
-                lab_unit TEXT,
-                duration INTEGER,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # Create sit_in_history table
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS sit_in_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                date DATE NOT NULL,
-                time_in TIMESTAMP NOT NULL,
-                time_out TIMESTAMP,
-                status TEXT DEFAULT 'active',
-                purpose TEXT,
-                lab_unit TEXT,
-                duration INTEGER,
-                allocated_duration INTEGER,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # Create reservations table
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS reservations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                date TEXT NOT NULL,
-                time TEXT NOT NULL,
-                purpose TEXT NOT NULL,
-                lab_unit TEXT NOT NULL,
-                status TEXT DEFAULT 'pending',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # Create announcements table
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS announcements (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                priority TEXT DEFAULT 'normal',
-                created_by TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Create feedback table
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS feedback (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                rating INTEGER NOT NULL,
-                comments TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-
         # Create lab_resources table
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS lab_resources (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                status TEXT DEFAULT 'enabled',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # Insert default lab resources if they don't exist
-        c.execute("SELECT COUNT(*) FROM lab_resources")
-        if c.fetchone()[0] == 0:
-            default_resources = [
-                ('Lab Unit 1',),
-                ('Lab Unit 2',),
-                ('Lab Unit 3',),
-                ('Lab Unit 4',)
-            ]
-            c.executemany("INSERT INTO lab_resources (name) VALUES (?)", default_resources)
-        
-        # Check if admin user exists, if not create it
-        c.execute("SELECT * FROM users WHERE username = ?", (ADMIN_USERNAME,))
-        if not c.fetchone():
-            admin_password_hash = generate_password_hash(ADMIN_PASSWORD, method="pbkdf2:sha256")
-            c.execute("""
-                INSERT INTO users (username, password, firstname, lastname, midname, email, course, yearlevel, is_admin, profile_pic)
-                VALUES (?, ?, 'Admin', 'User', '', 'admin@example.com', 'N/A', 'N/A', 1, 'default.png')
-            """, (ADMIN_USERNAME, admin_password_hash))
-            print("Admin user created successfully!")
+        c.execute('''CREATE TABLE IF NOT EXISTS lab_resources
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    link TEXT,
+                    status TEXT DEFAULT 'enabled',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
         conn.commit()
-        print("Database initialized successfully!")
         
-        # Update existing users with remaining sessions
-        try:
-            c.execute("ALTER TABLE users ADD COLUMN remaining_sessions INTEGER DEFAULT 0")
-            conn.commit()
-            print("Added remaining_sessions column to users table")
-        except sqlite3.OperationalError:
-            # Column already exists, ignore the error
-            pass
-            
-        # Add points column to users table
+        # Add points column to users table if it doesn't exist
         try:
             c.execute("ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0")
             conn.commit()
             print("Added points column to users table")
+        except sqlite3.OperationalError:
+            # Column already exists, ignore the error
+            pass
+            
+        # Add description column to lab_resources table if it doesn't exist
+        try:
+            c.execute("ALTER TABLE lab_resources ADD COLUMN description TEXT")
+            conn.commit()
+            print("Added description column to lab_resources table")
+        except sqlite3.OperationalError:
+            # Column already exists, ignore the error
+            pass
+            
+        # Add link column to lab_resources table if it doesn't exist
+        try:
+            c.execute("ALTER TABLE lab_resources ADD COLUMN link TEXT")
+            conn.commit()
+            print("Added link column to lab_resources table")
         except sqlite3.OperationalError:
             # Column already exists, ignore the error
             pass
@@ -581,89 +490,63 @@ def login_page():
 @app.route("/home")
 @app.route("/home/<show_section>")
 def home(show_section=None):
-    if "user" not in session:
-        flash("Please log in first.", "error")
-        return redirect(url_for("login_page"))
+    if 'user' not in session:
+        return redirect(url_for('login_page'))
+
+    conn = sqlite3.connect('users.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
     
-    # Check if user is an admin
-    if session["user"].get("is_admin"):
-        flash("Administrators should use the admin dashboard.", "error")
-        return redirect(url_for("admin_dashboard"))
+    # Get user information
+    cur.execute("SELECT * FROM users WHERE id = ?", (session['user']['id'],))
+    user = dict(cur.fetchone())
     
     # Get announcements
-    con = sqlite3.connect("users.db")
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
+    cur.execute("SELECT * FROM announcements ORDER BY created_at DESC")
+    announcements = [dict(row) for row in cur.fetchall()]
+    
+    # Get lab resources
+    cur.execute("SELECT * FROM lab_resources WHERE status = 'enabled' ORDER BY created_at DESC")
+    resources = [dict(row) for row in cur.fetchall()]
+    
+    # Get user's sit-in history
     cur.execute("""
-        SELECT a.*, u.username as created_by
-        FROM announcements a
-        JOIN users u ON a.created_by = u.id
-        ORDER BY a.created_at DESC
-        LIMIT 5
-    """)
-    announcements = []
-    for row in cur.fetchall():
-        announcement = dict(row)
-        # Convert created_at string to datetime object
-        announcement['created_at'] = datetime.strptime(announcement['created_at'], '%Y-%m-%d %H:%M:%S')
-        announcements.append(announcement)
+        SELECT 
+            strftime('%Y-%m-%d', date) as date,
+            time_in,
+            time_out,
+            purpose,
+            lab_unit,
+            duration,
+            allocated_duration,
+            status
+        FROM sit_in_history 
+        WHERE user_id = ? 
+        ORDER BY date DESC, time_in DESC
+    """, (user['id'],))
+    history = [dict(row) for row in cur.fetchall()]
     
-    # Get user's history data (always load this for improved performance)
-    user_id = session["user"]["id"]
-    
-    # Get user's session history
-    cur.execute("""
-            SELECT id, date, time_in, time_out, status, duration, allocated_duration, purpose, lab_unit 
-            FROM sit_in_history
-            WHERE user_id = ?
-            ORDER BY time_in DESC
-    """, (user_id,))
-    history = cur.fetchall()
-    
-    # Get statistics
+    # Calculate statistics
     cur.execute("""
         SELECT 
             COUNT(*) as total_sessions,
             COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_sessions,
-            SUM(CASE WHEN duration IS NOT NULL THEN duration ELSE 0 END) as total_duration
-        FROM sit_in_history
+            SUM(duration) as total_duration
+        FROM sit_in_history 
         WHERE user_id = ?
-    """, (user_id,))
-    stats = cur.fetchone()
+    """, (user['id'],))
+    stats = dict(cur.fetchone())
     
-    con.close()
+    conn.close()
     
-    # Format history data
-    formatted_history = []
-    for entry in history:
-        formatted_entry = {
-            'id': entry[0],
-            'date': entry[1],
-            'time_in': entry[2],
-            'time_out': entry[3] if entry[3] else None,
-            'status': entry[4],
-            'duration': entry[5],
-            'allocated_duration': entry[6],
-            'purpose': entry[7],
-            'lab_unit': entry[8]
-        }
-        formatted_history.append(formatted_entry)
-    
-    # Format statistics
-    statistics = {
-        'total_sessions': stats[0],
-        'completed_sessions': stats[1],
-        'total_duration': stats[2]
-    }
-    
-    return render_template(
-        "homepage.html", 
-        user=session["user"], 
-        announcements=announcements,
-        history=formatted_history,
-        stats=statistics,
-        show_section=show_section
-    )
+    return render_template('homepage.html', 
+                         user=user, 
+                         announcements=announcements,
+                         history=history,
+                         stats=stats,
+                         resources=resources,
+                         show_section=show_section,
+                         today=datetime.now().strftime('%Y-%m-%d'))
 
 # Route for updating profile details
 @app.route("/update_profile", methods=["POST"])
@@ -2305,6 +2188,57 @@ def generate_report():
     report_type = data.get('report_type')
     # Implement report generation logic here
     return jsonify({"success": True, "message": "Report generated successfully"})
+
+# Route for user view of lab resources
+@app.route("/lab_resources")
+def lab_resources():
+    conn = sqlite3.connect('users.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM lab_resources ORDER BY created_at DESC")
+    resources = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return render_template("lab_resources.html", resources=resources)
+
+# API route to add new resource
+@app.route("/api/add_resource", methods=["POST"])
+@admin_required
+def add_resource():
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        description = data.get('description')
+        link = data.get('link', '')
+
+        if not name or not description:
+            return jsonify({"success": False, "error": "Name and description are required"})
+
+        conn = sqlite3.connect('users.db')
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO lab_resources (name, description, link)
+            VALUES (?, ?, ?)
+        """, (name, description, link))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+# API route to delete resource
+@app.route("/api/delete_resource/<int:resource_id>", methods=["POST"])
+@admin_required
+def delete_resource(resource_id):
+    try:
+        conn = sqlite3.connect('users.db')
+        cur = conn.cursor()
+        cur.execute("DELETE FROM lab_resources WHERE id = ?", (resource_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 if __name__ == "__main__":
     # Initialize the database before starting the app
